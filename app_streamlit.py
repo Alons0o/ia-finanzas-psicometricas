@@ -63,7 +63,6 @@ if opcion == "Inicio":
     else:
         # Mostramos los últimos 5 movimientos
         for m in reversed(movimientos_db[-5:]):
-            # Determinamos el total de referencia y el color
             if m.tipo == "INGRESO":
                 total_ref = total_ingresos
                 color_hex = "#28a745" # Verde
@@ -74,25 +73,23 @@ if opcion == "Inicio":
                 emoji = "💸"
             
             porcentaje = (m.monto / total_ref * 100) if total_ref > 0 else 0
-            porcentaje = min(porcentaje, 100) # Límite visual
+            porcentaje = min(porcentaje, 100)
             
-            # Columnas: Información | Barra Ancha
-            col_info, col_visual = st.columns([1, 2])
-            
-            with col_info:
-                st.write(f"{emoji} **{m.descripcion}**")
-                st.write(f"**${m.monto:,.2f}**")
-            
-            with col_visual:
-                # Barra de progreso personalizada con HTML/CSS
-                # El 'height: 25px' controla el ancho (grosor) de la barra
-                st.markdown(f"""
-                    <div style="width: 100%; background-color: #e0e0e0; border-radius: 10px; height: 25px; margin-top: 10px;">
-                        <div style="width: {porcentaje}%; background-color: {color_hex}; height: 25px; border-radius: 10px; text-align: center; color: white; font-size: 12px; line-height: 25px;">
-                            {porcentaje:.1f}%
-                        </div>
+            # --- DISEÑO DE FILA ---
+            # Mostramos la descripción y el monto (con color) arriba de la barra
+            st.markdown(f"""
+                <div style="margin-bottom: -10px; margin-top: 15px;">
+                    <span style="font-weight: bold; font-size: 16px;">{emoji} {m.descripcion}</span>
+                    <span style="color: {color_hex}; font-weight: bold; font-size: 16px; margin-left: 10px;">
+                        ${m.monto:,.2f}
+                    </span>
+                </div>
+                <div style="width: 100%; background-color: #e0e0e0; border-radius: 12px; height: 28px; margin-top: 5px;">
+                    <div style="width: {porcentaje}%; background-color: {color_hex}; height: 28px; border-radius: 12px; text-align: center; color: white; font-size: 13px; line-height: 28px; font-weight: bold;">
+                        {porcentaje:.1f}%
                     </div>
-                """, unsafe_allow_html=True)
+                </div>
+            """, unsafe_allow_html=True)
 elif opcion == "Visualizaciones":
     st.title("📊 Análisis de Datos")
     db = SessionLocal()
