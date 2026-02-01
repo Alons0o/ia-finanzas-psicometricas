@@ -74,20 +74,23 @@ with col_acc1:
 with col_acc2:
     st.button('🤖 Obtener Recomendaciones', on_click=activar_ia, use_container_width=True)
 
-# --- LÓGICA DE VISUALIZACIONES ACTUALIZADA ---
 if st.session_state.ver_graficos:
-    st.subheader("📊 Resumen Financiero Detallado")
+    st.subheader("📊 Análisis Financiero y Psicométrico")
     db = SessionLocal()
+    motor = MotorPsicometrico(db)
+    
+    # Obtenemos los datos procesados para las burbujas (solo gastos)
+    datos_burbujas = motor.preparar_datos_burbujas()
+    # Obtenemos todos los movimientos para los totales y pasteles
     movimientos_db = db.query(Movimiento).all()
     db.close()
 
     if not movimientos_db:
-        st.warning('No hay datos suficientes para calcular el saldo.')
+        st.warning('No hay datos suficientes.')
     else:
-        # Separar datos
+        # 1. Lógica de Cálculos
         gastos = [m for m in movimientos_db if m.tipo == "GASTO"]
         ingresos = [m for m in movimientos_db if m.tipo == "INGRESO"]
-        
         total_gastos = sum(g.monto for g in gastos)
         total_ingresos = sum(i.monto for i in ingresos)
         saldo_final = total_ingresos - total_gastos
@@ -96,56 +99,67 @@ if st.session_state.ver_graficos:
         c1, c2, c3 = st.columns(3)
         c1.metric("📥 Total Ingresos", f"${total_ingresos:,.2f}")
         c2.metric("📤 Total Gastos", f"${total_gastos:,.2f}", delta=f"-${total_gastos:,.2f}", delta_color="inverse")
-        c3.metric("💰 Saldo Final", f"${saldo_final:,.2f}")
+        
+        # Color dinámico para el saldo
+        color_saldo = "normal" if saldo_final >= 0 else "inverse"
+        c3.metric("💰 Saldo Final", f"${saldo_final:,.2f}", delta=f"{'POSITIVO' if saldo_final >= 0 else 'DÉFICIT'}", delta_color=color_saldo)
 
         st.divider()
 
-        # --- FUNCIÓN MEJORADA PARA COLORES DISTINTOS ---
-        def dibujar_pastel_mejorado(ax, datos, titulo, mapa_color_base):
-            if not datos:
-                ax.text(0.5, 0.5, "Sin registros", ha='center', va='center')
-                ax.axis('off')
-                return
-            
-            # Agrupar montos por descripción para no repetir etiquetas
-            resumen = {}
-            for d in datos:
-                resumen[d.descripcion] = resumen.get(d.descripcion, 0) + d.monto
-            
-            labels = list(resumen.keys())
-            sizes = list(resumen.values())
-            
-            # Generar colores distintos usando una paleta cualitativa (Set3, Paired, etc)
-            # O una escala de colores bien distribuida
-            n = len(labels)
-            colores = plt.get_cmap(mapa_color_base)([i/(n if n > 1 else 1) for i in range(n)])
-
-            wedges, texts, autotexts = ax.pie(
-                sizes, 
-                autopct=lambda p: f'${p*sum(sizes)/100:,.1f}',
-                startangle=140, 
-                colors=colores,
-                textprops={'color':"w", 'weight':'bold', 'fontsize':9},
-                pctdistance=0.75 # Mueve el texto del monto un poco hacia afuera
-            )
-            ax.set_title(titulo, pad=20, fontweight='bold')
-            ax.legend(wedges, labels, title="Categorías", loc="center left", bbox_to_anchor=(1, 0, 0.5, 1), fontsize=8)
-
+        # --- FILA DE PASTELES (Ingresos y Gastos) ---
         col_ing, col_gas = st.columns(2)
 
+        def dibujar_pastel(ax, datos_lista, titulo, mapa_color):
+            if not datos_lista:
+                ax.text(0.5, 0.5, "Sin datos", ha='center', va='center')
+                ax.axis('off')
+                return
+            resumen = {}
+            for d in datos_lista:
+                resumen[d.descripcion] = resumen.get(d.descripcion, 0) + d.monto
+            labels, sizes = list(resumen.keys()), list(resumen.values())
+            n = len(labels)
+            colores = plt.get_cmap(mapa_color)([i/(n if n > 1 else 1) for i in range(n)])
+            wedges, _, _ = ax.pie(sizes, autopct=lambda p: f'${p*sum(sizes)/100:,.0f}', 
+                                 startangle=140, colors=colores, textprops={'color':"w", 'weight':'bold'})
+            ax.set_title(titulo, fontweight='bold')
+            ax.legend(wedges, labels, title="Categorías", loc="center left", bbox_to_anchor=(1, 0, 0.5, 1), fontsize=8)
+
         with col_ing:
-            st.write("### 📥 Mis Ingresos")
-            fig_ing, ax_ing = plt.subplots(figsize=(6, 5))
-            # Usamos 'viridis' o 'summer' para ingresos (tonos verdes/amarillos distintos)
-            dibujar_pastel_mejorado(ax_ing, ingresos, "Distribución de Ingresos", "viridis")
+            fig_ing, ax_ing = plt.subplots(figsize=(5, 4))
+            dibujar_pastel(ax_ing, ingresos, "Distribución de Ingresos", "viridis")
             st.pyplot(fig_ing)
 
         with col_gas:
-            st.write("### 📤 Mis Gastos")
-            fig_gas, ax_gas = plt.subplots(figsize=(6, 5))
-            # Usamos 'Set3' o 'tab20' para gastos (muchos colores distintos)
-            dibujar_pastel_mejorado(ax_gas, gastos, "Distribución de Gastos", "tab20")
+            fig_gas, ax_gas = plt.subplots(figsize=(5, 4))
+            dibujar_pastel(ax_gas, gastos, "Distribución de Gastos", "tab20")
             st.pyplot(fig_gas)
+
+        st.divider()
+
+        # --- FILA DEL GRÁFICO DE BURBUJAS (Psicométrico) ---
+        st.write("### 🫧 Mapa de Valor: Satisfacción vs Costo")
+        if not datos_burbujas:
+            st.info("Registra gastos con nivel de satisfacción para ver el mapa de burbujas.")
+        else:
+            fig_burbuja, ax_burbuja = plt.subplots(figsize=(10, 4))
+            # Usar la misma paleta tab20 para que los colores coincidan con el pastel de gastos
+            desc_unicas = list(set(d['descripcion'] for d in datos_burbujas))
+            color_map = {desc: plt.get_cmap("tab20")(i/len(desc_unicas)) for i, desc in enumerate(desc_unicas)}
+
+            for d in datos_burbujas:
+                ax_burbuja.scatter(
+                    d['monto'], d['satisfaccion'], 
+                    s=d['peso'] * 15, 
+                    color=color_map[d['descripcion']], 
+                    alpha=0.6, edgecolors='white'
+                )
+                ax_burbuja.annotate(d['descripcion'], (d['monto'], d['satisfaccion']), fontsize=9)
+
+            ax_burbuja.set_xlabel("Monto gastado ($)")
+            ax_burbuja.set_ylabel("Nivel de Satisfacción")
+            ax_burbuja.grid(True, linestyle='--', alpha=0.5)
+            st.pyplot(fig_burbuja)
 # --- LÓGICA DE DIAGNÓSTICO IA ---
 if st.session_state.ver_ia:
     st.divider()
