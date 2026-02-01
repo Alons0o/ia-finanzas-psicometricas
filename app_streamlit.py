@@ -139,3 +139,52 @@ if st.button('Obtener Recomendaciones'):
         st.write("✨ ¡Increíble! Todos tus gastos actuales te generan bienestar.")
     
     db.close()       
+# --- SECCIÓN 4: GESTIÓN DE HISTORIAL (EDITAR/ELIMINAR) ---
+st.divider()
+st.subheader("🗑️ Gestionar Historial")
+
+db = SessionLocal()
+# Consultamos todos los movimientos con su satisfacción
+historial = (
+    db.query(Movimiento)
+    .join(MetricaSatisfaccion)
+    .order_by(Movimiento.fecha.desc())
+    .all()
+)
+
+if historial:
+    # Creamos una lista de datos para mostrar en una tabla
+    datos_tabla = []
+    for h in historial:
+        datos_tabla.append({
+            "ID": h.id,
+            "Fecha": h.fecha.strftime("%Y-%m-%d"),
+            "Descripción": h.descripcion,
+            "Monto": f"${h.monto:.2f}",
+            "Satisfacción": h.satisfaccion.nivel
+        })
+    
+    st.table(datos_tabla)
+
+    # Formulario pequeño para eliminar por ID
+    with st.expander("❌ Eliminar un registro"):
+        id_a_eliminar = st.number_input("Ingresa el ID del gasto a borrar", min_value=1, step=1)
+        confirmar_borrado = st.button("Confirmar Eliminación")
+
+        if confirmar_borrado:
+            try:
+                # 1. Borrar primero la métrica (por la llave foránea)
+                db.query(MetricaSatisfaccion).filter(MetricaSatisfaccion.movimiento_id == id_a_eliminar).delete()
+                # 2. Borrar el movimiento
+                db.query(Movimiento).filter(Movimiento.id == id_a_eliminar).delete()
+                
+                db.commit()
+                st.success(f"✅ Registro {id_a_eliminar} eliminado. ¡Refresca los gráficos!")
+                st.rerun() # Recarga la app automáticamente
+            except Exception as e:
+                db.rollback()
+                st.error(f"Error al eliminar: {e}")
+else:
+    st.write("No hay registros en el historial.")
+
+db.close()    
