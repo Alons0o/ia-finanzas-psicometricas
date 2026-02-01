@@ -45,7 +45,7 @@ db.close()
 # --- NAVEGACIÓN PRINCIPAL ---
 
 if opcion == "Inicio":
-    st.title("🏠 Dashboard de Inicio")
+    st.title("Dashboard de Inicio")
     st.markdown("### Estado Financiero Actual")
     
     c1, c2, c3 = st.columns(3)
@@ -58,7 +58,7 @@ if opcion == "Inicio":
                 delta_color=color_saldo)
     
     st.divider()
-    st.subheader("📊 Última Actividad (Impacto Visual)")
+    st.subheader("Última Actividad (Impacto Visual)")
     
     if not movimientos_db:
         st.info("No hay registros aún.")
@@ -172,7 +172,7 @@ elif opcion == "Visualizaciones":
             st.pyplot(fig_gas)
 
         st.divider()
-        st.write("### 🫧 Mapa de Valor (Gastos)")
+        st.write("### Mapa de Valor (Gastos)")
         if datos_burbujas:
             fig_b, ax_b = plt.subplots(figsize=(10, 4))
             for d in datos_burbujas:
