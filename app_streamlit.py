@@ -82,14 +82,21 @@ if st.button('Obtener Recomendaciones'):
     analisis = motor.calcular_costo_insatisfaccion()
     
     if analisis["total_ineficiente"] > 0:
-        st.error(f"⚠️ He detectado {analisis['cantidad_gastos']} gastos que no te hacen feliz.")
+        st.error(f"⚠️ He detectado {analisis['cantidad_gastos']} gasto(s) que no te hacen feliz.")
+        
+        # MOSTRAR DETALLES ESPECÍFICOS
+        st.markdown("### 📋 Gastos Detectados:")
+        for detalle in analisis["detalles"]:
+            # Aquí imprimimos el nombre y el monto del gasto específico
+            st.warning(f"👉 **{detalle['desc']}**: Costó **${detalle['monto']}** y te dio una satisfacción de solo **{detalle['nivel']}/10**.")
+        
         st.info(f"Si eliminas estos gastos, recuperarías **${analisis['total_ineficiente']}** mensuales.")
         
-        # 2. Simulación de meta (Ejemplo: Meta de $1000 ahorrando $100 base)
+        # 2. Simulación de meta
         simulacion = motor.simular_alcance_meta(monto_meta=1000, ahorro_mensual_base=100)
-        st.success(f"📈 **Plan de Optimización:** Si dejas de gastar en lo que no te satisface, alcanzarías una meta de $1000 en **{simulacion['meses_optimizado']} meses**, ¡ahorrando {simulacion['tiempo_ahorrado']} meses de espera!")
+        st.success(f"📈 **Plan de Optimización:** Si dejas de gastar en eso, alcanzarías tu meta en **{simulacion['meses_optimizado']} meses**.")
     else:
         st.balloons()
-        st.write("✨ ¡Increíble! Todos tus gastos actuales te generan bienestar. No hay fugas de dinero detectadas.")
+        st.write("✨ ¡Increíble! Todos tus gastos actuales te generan bienestar.")
     
-    db.close()        
+    db.close()       
