@@ -74,12 +74,13 @@ if st.button('Generar Visualizaciones'):
             ax_burbuja.set_ylabel('Satisfacción (1-10)')
             st.pyplot(fig_burbuja)
 
+        # ... (código previo del gráfico de burbujas en col_izq)
+
         with col_der:
             st.write("### 🍰 Distribución de Gastos")
             labels = [d['descripcion'] for d in datos]
             sizes = [d['monto'] for d in datos]
             
-            # Función para el monto dentro del pastel
             def func_monto(val):
                 actual_val = val/100.*sum(sizes)
                 return f"${actual_val:,.1f}"
@@ -87,7 +88,6 @@ if st.button('Generar Visualizaciones'):
             fig_pastel, ax_pastel = plt.subplots(figsize=(6, 5))
             colores = plt.cm.Paired(range(len(labels)))
 
-            # Dibujamos pastel sin etiquetas de texto para que no estorben
             wedges, texts, autotexts = ax_pastel.pie(
                 sizes, 
                 autopct=func_monto, 
@@ -96,7 +96,6 @@ if st.button('Generar Visualizaciones'):
                 textprops={'color':"w", 'weight':'bold', 'fontsize':8}
             )
 
-            # Leyenda a la derecha
             ax_pastel.legend(
                 wedges, labels,
                 title="Gastos",
@@ -106,6 +105,10 @@ if st.button('Generar Visualizaciones'):
             )
             ax_pastel.axis('equal')
             st.pyplot(fig_pastel)
+
+            # --- LA MÉTRICA AHORA AQUÍ ---
+            total_dinero = sum(d['monto'] for d in datos)
+            st.metric(label="💰 Gasto Total Registrado", value=f"${total_dinero:,.2f}")
 # --- SECCIÓN 3: DIAGNÓSTICO DE LA IA ---
 st.divider()
 st.subheader("🤖 Diagnóstico de la IA Financiera")
