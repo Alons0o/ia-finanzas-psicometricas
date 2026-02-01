@@ -62,26 +62,41 @@ if st.button('Generar Visualizaciones'):
         # Creamos dos columnas para mostrar los gráficos lado a lado
         col_graf1, col_graf2 = st.columns(2)
 
-        with col_graf1:
-            st.write("### 🫧 Mapa de Valor")
-            fig1, ax1 = plt.subplots()
-            for d in datos:
-                ax1.scatter(d['monto'], d['satisfaccion'], s=d['peso']*10, alpha=0.6)
-                ax1.annotate(d['descripcion'], (d['monto'], d['satisfaccion']))
-            ax1.set_xlabel('Monto ($)')
-            ax1.set_ylabel('Satisfacción')
-            st.pyplot(fig1)
-
         with col_graf2:
-            st.write("### 🍰 Distribución de Gastos")
-            # Extraemos etiquetas y valores para el pastel
-            labels = [d['descripcion'] for d in datos]
+            st.write("### 🍰 Distribución de Gastos ($)")
+            
+            labels = [d['description'] for d in datos]
             sizes = [d['monto'] for d in datos]
             
-            fig2, ax2 = plt.subplots()
-            # Creamos el gráfico de pastel
-            ax2.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=140, shadow=True)
-            ax2.axis('equal')  # Para que el pastel sea un círculo
+            # Función para mostrar solo el monto real dentro del pastel
+            def func_monto(val):
+                actual_val = val/100.*sum(sizes)
+                return f"${actual_val:,.2f}"
+
+            fig2, ax2 = plt.subplots(figsize=(8, 6))
+            
+            # Definimos una paleta de colores variada
+            colores = plt.cm.Paired(range(len(labels)))
+
+            # Creamos el pastel sin etiquetas internas de texto (labels=[]) para que no se amontonen
+            wedges, texts, autotexts = ax2.pie(
+                sizes, 
+                autopct=func_monto, 
+                startangle=140, 
+                colors=colores,
+                textprops={'color':"w", 'weight':'bold', 'fontsize':9}
+            )
+
+            # Agregamos la leyenda al costado derecho
+            ax2.legend(
+                wedges, 
+                labels,
+                title="Gastos",
+                loc="center left",
+                bbox_to_anchor=(1, 0, 0.5, 1)
+            )
+
+            ax2.axis('equal')
             st.pyplot(fig2)
 # --- SECCIÓN 3: DIAGNÓSTICO DE LA IA ---
 st.divider()
