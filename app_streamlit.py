@@ -74,13 +74,10 @@ with col_acc1:
 with col_acc2:
     st.button('🤖 Obtener Recomendaciones', on_click=activar_ia, use_container_width=True)
 
-# --- LÓGICA DE VISUALIZACIONES (ACTUALIZADA PARA INGRESOS Y SALDO) ---
+# --- LÓGICA DE VISUALIZACIONES ACTUALIZADA ---
 if st.session_state.ver_graficos:
-    st.subheader("📊 Resumen Financiero Completo")
+    st.subheader("📊 Resumen Financiero Detallado")
     db = SessionLocal()
-    
-    # 1. Obtener todos los movimientos (Gastos e Ingresos)
-    # Nota: Asegúrate de que tu modelo 'Movimiento' tenga el campo 'tipo'
     movimientos_db = db.query(Movimiento).all()
     db.close()
 
@@ -91,12 +88,11 @@ if st.session_state.ver_graficos:
         gastos = [m for m in movimientos_db if m.tipo == "GASTO"]
         ingresos = [m for m in movimientos_db if m.tipo == "INGRESO"]
         
-        monto_inicial = 0.0  # Puedes cambiar esto por un st.number_input arriba si quieres
         total_gastos = sum(g.monto for g in gastos)
         total_ingresos = sum(i.monto for i in ingresos)
-        saldo_final = monto_inicial + total_ingresos - total_gastos
+        saldo_final = total_ingresos - total_gastos
 
-        # --- FILA 1: MÉTRICAS RESUMEN ---
+        # --- MÉTRICAS SUPERIORES ---
         c1, c2, c3 = st.columns(3)
         c1.metric("📥 Total Ingresos", f"${total_ingresos:,.2f}")
         c2.metric("📤 Total Gastos", f"${total_gastos:,.2f}", delta=f"-${total_gastos:,.2f}", delta_color="inverse")
@@ -104,34 +100,51 @@ if st.session_state.ver_graficos:
 
         st.divider()
 
-        # --- FILA 2: GRÁFICOS ---
+        # --- FUNCIÓN MEJORADA PARA COLORES DISTINTOS ---
+        def dibujar_pastel_mejorado(ax, datos, titulo, mapa_color_base):
+            if not datos:
+                ax.text(0.5, 0.5, "Sin registros", ha='center', va='center')
+                ax.axis('off')
+                return
+            
+            # Agrupar montos por descripción para no repetir etiquetas
+            resumen = {}
+            for d in datos:
+                resumen[d.descripcion] = resumen.get(d.descripcion, 0) + d.monto
+            
+            labels = list(resumen.keys())
+            sizes = list(resumen.values())
+            
+            # Generar colores distintos usando una paleta cualitativa (Set3, Paired, etc)
+            # O una escala de colores bien distribuida
+            n = len(labels)
+            colores = plt.get_cmap(mapa_color_base)([i/(n if n > 1 else 1) for i in range(n)])
+
+            wedges, texts, autotexts = ax.pie(
+                sizes, 
+                autopct=lambda p: f'${p*sum(sizes)/100:,.1f}',
+                startangle=140, 
+                colors=colores,
+                textprops={'color':"w", 'weight':'bold', 'fontsize':9},
+                pctdistance=0.75 # Mueve el texto del monto un poco hacia afuera
+            )
+            ax.set_title(titulo, pad=20, fontweight='bold')
+            ax.legend(wedges, labels, title="Categorías", loc="center left", bbox_to_anchor=(1, 0, 0.5, 1), fontsize=8)
+
         col_ing, col_gas = st.columns(2)
 
-        # Mapa de colores para consistencia (Ingresos en tonos verdes, Gastos en tonos cálidos/variados)
-        def crear_pastel(ax, datos, titulo, paleta):
-            if not datos:
-                ax.text(0.5, 0.5, "Sin datos", ha='center')
-                return
-            labels = [d.descripcion for d in datos]
-            sizes = [d.monto for d in datos]
-            colores = plt.get_cmap(paleta)(range(len(labels)))
-            wedges, texts, autotexts = ax.pie(
-                sizes, autopct=lambda p: f'${p*sum(sizes)/100:,.1f}',
-                startangle=140, colors=colores, textprops={'color':"w", 'weight':'bold', 'fontsize':8}
-            )
-            ax.set_title(titulo)
-            ax.legend(wedges, labels, title="Detalle", loc="center left", bbox_to_anchor=(1, 0, 0.5, 1), fontsize=7)
-
         with col_ing:
-            st.write("### 📥 Distribución de Ingresos")
-            fig_ing, ax_ing = plt.subplots(figsize=(5, 4))
-            crear_pastel(ax_ing, ingresos, "Ingresos", "Greens")
+            st.write("### 📥 Mis Ingresos")
+            fig_ing, ax_ing = plt.subplots(figsize=(6, 5))
+            # Usamos 'viridis' o 'summer' para ingresos (tonos verdes/amarillos distintos)
+            dibujar_pastel_mejorado(ax_ing, ingresos, "Distribución de Ingresos", "viridis")
             st.pyplot(fig_ing)
 
         with col_gas:
-            st.write("### 🍰 Distribución de Gastos")
-            fig_gas, ax_gas = plt.subplots(figsize=(5, 4))
-            crear_pastel(ax_gas, gastos, "Gastos", "Oranges")
+            st.write("### 📤 Mis Gastos")
+            fig_gas, ax_gas = plt.subplots(figsize=(6, 5))
+            # Usamos 'Set3' o 'tab20' para gastos (muchos colores distintos)
+            dibujar_pastel_mejorado(ax_gas, gastos, "Distribución de Gastos", "tab20")
             st.pyplot(fig_gas)
 # --- LÓGICA DE DIAGNÓSTICO IA ---
 if st.session_state.ver_ia:
