@@ -9,11 +9,10 @@ from app.models.satisfaccion import MetricaSatisfaccion
 # --- CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="IA Finanzas Psicométricas", page_icon="🧠", layout="wide")
 
-# --- BARRA LATERAL (Menú de botones grandes) ---
+# --- BARRA LATERAL (MENÚ MODERNO) ---
 with st.sidebar:
-    st.markdown("<h2 style='text-align: center;'>🧠 Menú Principal</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center;'>🧠 Menú</h2>", unsafe_allow_html=True)
     
-    # Este componente sustituye a los círculos de selección por botones elegantes
     opcion = option_menu(
         menu_title=None, 
         options=["Inicio", "Registrar Movimiento", "Visualizaciones", "Recomendaciones IA", "Gestionar Historial"],
@@ -21,20 +20,19 @@ with st.sidebar:
         menu_icon="cast",
         default_index=0,
         styles={
-            "container": {"padding": "0!important", "background-color": "#f8f9fa"},
+            "container": {"padding": "0!important", "background-color": "#f0f2f6"},
             "icon": {"color": "#ff4b4b", "font-size": "20px"}, 
             "nav-link": {
                 "font-size": "16px", 
                 "text-align": "left", 
-                "margin": "10px", 
-                "font-weight": "500",
-                "border-radius": "10px"
+                "margin": "8px", 
+                "font-weight": "bold"
             },
             "nav-link-selected": {"background-color": "#ff4b4b", "color": "white"},
         }
     )
 
-# --- LÓGICA DE DATOS ---
+# --- LÓGICA DE DATOS GLOBAL ---
 db = SessionLocal()
 movimientos_db = db.query(Movimiento).all()
 total_gastos = sum(m.monto for m in movimientos_db if m.tipo == "GASTO")
@@ -42,38 +40,42 @@ total_ingresos = sum(m.monto for m in movimientos_db if m.tipo == "INGRESO")
 saldo_final = total_ingresos - total_gastos
 db.close()
 
-# --- NAVEGACIÓN POR SECCIONES ---
+# --- NAVEGACIÓN ---
 
 if opcion == "Inicio":
     st.title("🏠 Dashboard de Inicio")
+    st.markdown("### Estado Financiero Actual")
+    
     c1, c2, c3 = st.columns(3)
-    c1.metric("📥 Ingresos", f"${total_ingresos:,.2f}")
-    c2.metric("📤 Gastos", f"${total_gastos:,.2f}", delta=f"-${total_gastos:,.2f}", delta_color="inverse")
-    c3.metric("💰 Saldo Neto", f"${saldo_final:,.2f}", delta="Ahorro" if saldo_final >= 0 else "Déficit")
+    c1.metric("📥 Total Ingresos", f"${total_ingresos:,.2f}")
+    c2.metric("📤 Total Gastos", f"${total_gastos:,.2f}", delta=f"-${total_gastos:,.2f}", delta_color="inverse")
+    
+    color_saldo = "normal" if saldo_final >= 0 else "inverse"
+    c3.metric("💰 Dinero Restante", f"${saldo_final:,.2f}", 
+                delta="POSITIVO" if saldo_final >= 0 else "DÉFICIT", 
+                delta_color=color_saldo)
+    
     st.divider()
-    st.subheader("📝 Actividad Reciente")
-    for m in reversed(movimientos_db[-5:]):
-        st.write(f"{'✅' if m.tipo == 'INGRESO' else '💸'} **{m.descripcion}**: ${m.monto:,.2f}")
+    st.subheader("📜 Última Actividad")
+    if not movimientos_db:
+        st.info("No hay registros. Comienza en 'Registrar Movimiento'.")
+    else:
+        for m in reversed(movimientos_db[-5:]):
+            st.write(f"{'🟢' if m.tipo == 'INGRESO' else '🔴'} **{m.descripcion}**: ${m.monto:,.2f}")
 
 elif opcion == "Registrar Movimiento":
-    st.title("📝 Nuevo Registro")
-    with st.form("form_registro", clear_on_submit=True):
+    st.title("📝 Registrar Movimiento")
+    with st.form("formulario_gastos", clear_on_submit=True):
         col1, col2 = st.columns(2)
         with col1:
-            descripcion = st.text_input("Concepto", placeholder="Ej. Alquiler, Salario...")
-            # 'value=None' asegura que el campo inicie vacío sin el 0,00 molesto
-            monto = st.number_input("Importe ($)", value=None, placeholder="Ingresa el monto", step=0.01)
+            descripcion = st.text_input("Descripción", placeholder="Ej. Sueldo, Netflix...")
+            monto = st.number_input("Monto ($)", value=None, placeholder="0.00", step=0.01)
         with col2:
-            tipo = st.selectbox("Categoría", ["GASTO", "INGRESO"])
-            satisfaccion = st.slider("Satisfacción Emocional", 1, 10, 5)
+            tipo = st.selectbox("Tipo", ["GASTO", "INGRESO"])
+            satisfaccion_nivel = st.slider("Satisfacción (1-10)", 1, 10, 5)
         
-        if st.form_submit_button("Guardar en la Nube"):
-            if descripcion and monto and monto > 0:
-                # ... (Lógica de guardado que ya tienes)
-                st.success("¡Registro guardado exitosamente!")
-                st.rerun()
-
-# (Las demás secciones mantienen su lógica pero bajo las etiquetas del nuevo menú)
+        comentario = st.text_area("Comentario emocional")
+        boton_guardar = st.form_submit_button("Guardar Registro")
 
     if boton_guardar:
         if descripcion and monto and monto > 0:
