@@ -48,45 +48,50 @@ if opcion == "Inicio":
     st.title("Dashboard de Inicio")
     st.markdown("### Estado Financiero Actual")
     
+    # --- MÉTRICAS SUPERIORES (Se mantienen intactas) ---
     c1, c2, c3 = st.columns(3)
     c1.metric("📥 Total Ingresos", f"${total_ingresos:,.2f}")
     c2.metric("📤 Total Gastos", f"${total_gastos:,.2f}", delta=f"-${total_gastos:,.2f}", delta_color="inverse")
     
     color_saldo = "normal" if saldo_final >= 0 else "inverse"
-    c3.metric("💰 Dinero Restante", f"${saldo_final:,.2f}", 
+    c3.metric("Dinero Restante", f"${saldo_final:,.2f}", 
                 delta="POSITIVO" if saldo_final >= 0 else "DÉFICIT", 
                 delta_color=color_saldo)
     
     st.divider()
-    st.subheader("Última Actividad (Impacto Visual)")
+    
+    # --- ÚLTIMA ACTIVIDAD (Solo una barra por registro) ---
+    st.subheader("Última Actividad (Impacto Proporcional)")
     
     if not movimientos_db:
         st.info("No hay registros aún.")
     else:
-        for m in reversed(movimientos_db[-5:]):
-            if m.tipo == "INGRESO":
-                total_ref = total_ingresos
-                color_hex = "#28a745" # Verde
-                emoji = "💰"
-            else:
-                total_ref = total_gastos
-                color_hex = "#dc3545" # Rojo
-                emoji = "💸"
+        # Calculamos el valor máximo una sola vez antes del bucle
+        valor_maximo_global = max([m.monto for m in movimientos_db]) if movimientos_db else 1
+        
+        # Tomamos solo los últimos 5 para evitar que la página sea eterna
+        ultimos_movimientos = reversed(movimientos_db[-5:])
+        
+        for m in ultimos_movimientos:
+            # Definir colores según el tipo
+            es_ingreso = (m.tipo.upper() == "INGRESO")
+            color_hex = "#28a745" if es_ingreso else "#dc3545"
+            emoji = "💰" if es_ingreso else "💸"
             
-            porcentaje = (m.monto / total_ref * 100) if total_ref > 0 else 0
-            porcentaje = min(porcentaje, 100)
+            # Cálculo del porcentaje respecto al mayor valor de la historia
+            porcentaje_relativo = (m.monto / valor_maximo_global * 100)
             
-            # Monto arriba de la barra con color dinámico
+            # Diseño: Título y Monto arriba, Barra abajo
             st.markdown(f"""
-                <div style="margin-bottom: -5px; margin-top: 20px;">
-                    <span style="font-weight: bold; font-size: 16px;">{emoji} {m.descripcion}</span>
-                    <span style="color: {color_hex}; font-weight: bold; font-size: 16px; margin-left: 10px;">
-                        ${m.monto:,.2f}
-                    </span>
-                </div>
-                <div style="width: 100%; background-color: #e0e0e0; border-radius: 12px; height: 28px; margin-top: 5px;">
-                    <div style="width: {porcentaje}%; background-color: {color_hex}; height: 28px; border-radius: 12px; text-align: center; color: white; font-size: 13px; line-height: 28px; font-weight: bold;">
-                        {porcentaje:.1f}%
+                <div style="margin-top: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                        <span style="font-weight: bold; font-size: 16px;">{emoji} {m.descripcion}</span>
+                        <span style="color: {color_hex}; font-weight: bold; font-size: 16px;">${m.monto:,.2f}</span>
+                    </div>
+                    <div style="width: 100%; background-color: #f0f0f0; border-radius: 12px; height: 26px; border: 1px solid #e0e0e0; overflow: hidden;">
+                        <div style="width: {porcentaje_relativo}%; background-color: {color_hex}; height: 100%; border-radius: 10px; display: flex; align-items: center; justify-content: center; min-width: 40px;">
+                            <span style="color: white; font-size: 11px; font-weight: bold;">{porcentaje_relativo:.1f}%</span>
+                        </div>
                     </div>
                 </div>
             """, unsafe_allow_html=True)
