@@ -70,3 +70,26 @@ if st.button('Generar Mapa de Valor'):
         ax.set_ylabel('Satisfacción (1-10)')
         ax.set_title('Mapa de Valor Emocional')
         st.pyplot(fig)
+# --- SECCIÓN 3: DIAGNÓSTICO DE LA IA ---
+st.divider()
+st.subheader("🤖 Diagnóstico de la IA Financiera")
+
+if st.button('Obtener Recomendaciones'):
+    db = SessionLocal()
+    motor = MotorPsicometrico(db)
+    
+    # 1. Análisis de ineficiencias
+    analisis = motor.calcular_costo_insatisfaccion()
+    
+    if analisis["total_ineficiente"] > 0:
+        st.error(f"⚠️ He detectado {analisis['cantidad_gastos']} gastos que no te hacen feliz.")
+        st.info(f"Si eliminas estos gastos, recuperarías **${analisis['total_ineficiente']}** mensuales.")
+        
+        # 2. Simulación de meta (Ejemplo: Meta de $1000 ahorrando $100 base)
+        simulacion = motor.simular_alcance_meta(monto_meta=1000, ahorro_mensual_base=100)
+        st.success(f"📈 **Plan de Optimización:** Si dejas de gastar en lo que no te satisface, alcanzarías una meta de $1000 en **{simulacion['meses_optimizado']} meses**, ¡ahorrando {simulacion['tiempo_ahorrado']} meses de espera!")
+    else:
+        st.balloons()
+        st.write("✨ ¡Increíble! Todos tus gastos actuales te generan bienestar. No hay fugas de dinero detectadas.")
+    
+    db.close()        
