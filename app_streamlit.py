@@ -24,7 +24,7 @@ def activar_ia():
     st.session_state.ver_ia = True
 
 # --- SECCIÓN 1: FORMULARIO DE REGISTRO ---
-st.subheader("📝 Registrar nuevo gasto")
+st.subheader("Registrar nuevo gasto")
 with st.form("formulario_gastos", clear_on_submit=True):
     col1, col2 = st.columns(2)
     # En la Sección 1: Formulario
