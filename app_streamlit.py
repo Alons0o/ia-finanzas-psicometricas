@@ -186,5 +186,36 @@ if historial:
                 st.error(f"Error al eliminar: {e}")
 else:
     st.write("No hay registros en el historial.")
-
+# --- SUB-SECCIÓN: EDITAR REGISTRO ---
+    with st.expander("📝 Editar un registro"):
+        id_a_editar = st.number_input("ID del gasto a editar", min_value=1, step=1, key="edit_id")
+        
+        # Buscamos el registro en la DB
+        mov_edit = db.query(Movimiento).filter(Movimiento.id == id_a_editar).first()
+        
+        if mov_edit:
+            st.info(f"Editando: {mov_edit.descripcion}")
+            with st.form("form_edicion"):
+                nueva_desc = st.text_input("Nueva Descripción", value=mov_edit.descripcion)
+                nuevo_monto = st.number_input("Nuevo Monto", value=float(mov_edit.monto))
+                nuevo_nivel = st.slider("Nueva Satisfacción", 1, 10, int(mov_edit.satisfaccion.nivel))
+                
+                boton_actualizar = st.form_submit_button("Guardar Cambios")
+                
+                if boton_actualizar:
+                    try:
+                        # Actualizamos Movimiento
+                        mov_edit.descripcion = nueva_desc
+                        mov_edit.monto = nuevo_monto
+                        # Actualizamos Métrica
+                        mov_edit.satisfaccion.nivel = nuevo_nivel
+                        
+                        db.commit()
+                        st.success("✅ ¡Registro actualizado!")
+                        st.rerun()
+                    except Exception as e:
+                        db.rollback()
+                        st.error(f"Error al actualizar: {e}")
+        else:
+            st.warning("Introduce un ID válido para editar.")
 db.close()    
