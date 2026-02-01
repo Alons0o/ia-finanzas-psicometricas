@@ -15,7 +15,7 @@ with st.sidebar:
     
     opcion = option_menu(
         menu_title=None, 
-        options=["Inicio", "Registrar Movimiento", "Visualizaciones", "Recomendaciones IA", "Gestionar Historial"],
+        options=["Inicio", "Registrar Movimiento", "Visualizaciones", "Recomendaciones", "Gestionar Historial"],
         icons=["house", "pencil-square", "bar-chart", "robot", "gear"], 
         menu_icon="cast",
         default_index=0,
@@ -142,7 +142,7 @@ elif opcion == "Visualizaciones":
                 ax_b.annotate(d['descripcion'], (d['monto'], d['satisfaccion']))
             st.pyplot(fig_b)
 
-elif opcion == "Recomendaciones IA":
+elif opcion == "Recomendaciones":
     st.title("🤖 Recomendaciones") # Título actualizado
     db = SessionLocal()
     motor = MotorPsicometrico(db)
