@@ -42,6 +42,8 @@ db.close()
 
 # --- NAVEGACIÓN ---
 
+# --- NAVEGACIÓN PRINCIPAL ---
+
 if opcion == "Inicio":
     st.title("🏠 Dashboard de Inicio")
     st.markdown("### Estado Financiero Actual")
@@ -61,7 +63,6 @@ if opcion == "Inicio":
     if not movimientos_db:
         st.info("No hay registros aún.")
     else:
-        # Mostramos los últimos 5 movimientos
         for m in reversed(movimientos_db[-5:]):
             if m.tipo == "INGRESO":
                 total_ref = total_ingresos
@@ -75,10 +76,9 @@ if opcion == "Inicio":
             porcentaje = (m.monto / total_ref * 100) if total_ref > 0 else 0
             porcentaje = min(porcentaje, 100)
             
-            # --- DISEÑO DE FILA ---
-            # Mostramos la descripción y el monto (con color) arriba de la barra
+            # Monto arriba de la barra con color dinámico
             st.markdown(f"""
-                <div style="margin-bottom: -10px; margin-top: 15px;">
+                <div style="margin-bottom: -5px; margin-top: 20px;">
                     <span style="font-weight: bold; font-size: 16px;">{emoji} {m.descripcion}</span>
                     <span style="color: {color_hex}; font-weight: bold; font-size: 16px; margin-left: 10px;">
                         ${m.monto:,.2f}
@@ -90,6 +90,50 @@ if opcion == "Inicio":
                     </div>
                 </div>
             """, unsafe_allow_html=True)
+
+# --- ESTA ES LA PARTE QUE DEBES REVISAR (Asegúrate que esté al mismo nivel que el 'if' de arriba) ---
+elif opcion == "Registrar Movimiento":
+    st.title("📝 Registrar Movimiento")
+    
+    with st.form("formulario_gastos", clear_on_submit=True):
+        col1, col2 = st.columns(2)
+        with col1:
+            descripcion = st.text_input("Descripción", placeholder="Ej. Sueldo, Alquiler, Comida...")
+            # value=None para que aparezca limpio
+            monto = st.number_input("Monto ($)", value=None, placeholder="0.00", step=0.01)
+        
+        with col2:
+            tipo = st.selectbox("Tipo", ["GASTO", "INGRESO"])
+            satisfaccion_nivel = st.slider("Satisfacción Emocional (1-10)", 1, 10, 5)
+        
+        comentario = st.text_area("Comentario (¿Cómo te sentiste con este gasto/ingreso?)")
+        
+        boton_guardar = st.form_submit_button("Guardar Registro")
+
+    if boton_guardar:
+        if descripcion and monto and monto > 0:
+            db = SessionLocal()
+            try:
+                nuevo_mov = Movimiento(tipo=tipo, descripcion=descripcion, monto=monto)
+                db.add(nuevo_mov)
+                db.flush()
+                
+                nueva_metrica = MetricaSatisfaccion(
+                    movimiento_id=nuevo_mov.id, 
+                    nivel=satisfaccion_nivel, 
+                    comentario=comentario
+                )
+                db.add(nueva_metrica)
+                db.commit()
+                st.success("✅ ¡Movimiento registrado con éxito!")
+                st.balloons()
+            except Exception as e:
+                db.rollback()
+                st.error(f"Error al guardar: {e}")
+            finally:
+                db.close()
+        else:
+            st.warning("⚠️ Por favor, completa la descripción y el monto.")
 elif opcion == "Visualizaciones":
     st.title("📊 Análisis de Datos")
     db = SessionLocal()
