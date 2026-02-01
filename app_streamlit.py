@@ -65,20 +65,17 @@ if st.button('Generar Visualizaciones'):
         with col_graf2:
             st.write("### 🍰 Distribución de Gastos ($)")
             
-            labels = [d['description'] for d in datos]
+            # CAMBIO AQUÍ: 'descripcion' con 'c' y sin 'i' al final
+            labels = [d['descripcion'] for d in datos] 
             sizes = [d['monto'] for d in datos]
             
-            # Función para mostrar solo el monto real dentro del pastel
             def func_monto(val):
                 actual_val = val/100.*sum(sizes)
                 return f"${actual_val:,.2f}"
 
             fig2, ax2 = plt.subplots(figsize=(8, 6))
-            
-            # Definimos una paleta de colores variada
             colores = plt.cm.Paired(range(len(labels)))
 
-            # Creamos el pastel sin etiquetas internas de texto (labels=[]) para que no se amontonen
             wedges, texts, autotexts = ax2.pie(
                 sizes, 
                 autopct=func_monto, 
@@ -87,7 +84,6 @@ if st.button('Generar Visualizaciones'):
                 textprops={'color':"w", 'weight':'bold', 'fontsize':9}
             )
 
-            # Agregamos la leyenda al costado derecho
             ax2.legend(
                 wedges, 
                 labels,
