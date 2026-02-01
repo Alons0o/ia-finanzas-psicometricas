@@ -15,7 +15,7 @@ with st.sidebar:
     
     opcion = option_menu(
         menu_title=None, 
-        options=["Inicio", "Registrar Movimiento", "Visualizaciones", "Recomendaciones", "Gestionar Historial"],
+        options=["Inicio", "Registrar Movimiento", "Visualizaciones", "Recomendaciones IA", "Gestionar Historial"],
         icons=["house", "pencil-square", "bar-chart", "robot", "gear"], 
         menu_icon="cast",
         default_index=0,
