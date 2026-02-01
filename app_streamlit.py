@@ -45,47 +45,37 @@ db.close()
 # --- NAVEGACIÓN PRINCIPAL ---
 
 if opcion == "Inicio":
-    st.title("🏠 Dashboard de Inicio")
+    st.title("Dashboard de Inicio")
     st.markdown("### Estado Financiero Actual")
     
-    # ... (tus métricas c1, c2, c3 se mantienen igual)
+    c1, c2, c3 = st.columns(3)
+    c1.metric("📥 Total Ingresos", f"${total_ingresos:,.2f}")
+    c2.metric("📤 Total Gastos", f"${total_gastos:,.2f}", delta=f"-${total_gastos:,.2f}", delta_color="inverse")
+    
+    color_saldo = "normal" if saldo_final >= 0 else "inverse"
+    c3.metric("💰 Dinero Restante", f"${saldo_final:,.2f}", 
+                delta="POSITIVO" if saldo_final >= 0 else "DÉFICIT", 
+                delta_color=color_saldo)
     
     st.divider()
-    st.subheader("Última Actividad (Impacto Proporcional)")
+    st.subheader("Última Actividad (Impacto Visual)")
     
     if not movimientos_db:
         st.info("No hay registros aún.")
     else:
-        # BUSCAMOS EL VALOR MÁXIMO para que sea nuestra referencia del 100%
-        # Usamos abs() por seguridad, aunque los montos suelen ser positivos
-        valor_maximo = max([m.monto for m in movimientos_db]) if movimientos_db else 1
-        
-        # Mostramos los últimos 5 movimientos
         for m in reversed(movimientos_db[-5:]):
             if m.tipo == "INGRESO":
+                total_ref = total_ingresos
                 color_hex = "#28a745" # Verde
                 emoji = "💰"
             else:
+                total_ref = total_gastos
                 color_hex = "#dc3545" # Rojo
                 emoji = "💸"
             
-            # El porcentaje ahora es respecto al movimiento más grande de la historia
-            porcentaje = (m.monto / valor_maximo * 100)
+            porcentaje = (m.monto / total_ref * 100) if total_ref > 0 else 0
+            porcentaje = min(porcentaje, 100)
             
-            # --- DISEÑO DE FILA ---
-            st.markdown(f"""
-                <div style="margin-bottom: -5px; margin-top: 20px;">
-                    <span style="font-weight: bold; font-size: 16px;">{emoji} {m.descripcion}</span>
-                    <span style="color: {color_hex}; font-weight: bold; font-size: 16px; margin-left: 10px;">
-                        ${m.monto:,.2f}
-                    </span>
-                </div>
-                <div style="width: 100%; background-color: #f0f0f0; border-radius: 12px; height: 28px; margin-top: 5px; border: 1px solid #e0e0e0;">
-                    <div style="width: {porcentaje}%; background-color: {color_hex}; height: 28px; border-radius: 12px; text-align: center; color: white; font-size: 13px; line-height: 28px; font-weight: bold; min-width: 5%;">
-                        {porcentaje:.1f}%
-                    </div>
-                </div>
-            """, unsafe_allow_html=True)
             # Monto arriba de la barra con color dinámico
             st.markdown(f"""
                 <div style="margin-bottom: -5px; margin-top: 20px;">
