@@ -49,27 +49,40 @@ if boton_guardar:
 
 st.divider()
 
-# --- SECCIÓN 2: GRÁFICO ---
-if st.button('Generar Mapa de Valor'):
+# --- SECCIÓN 2: GRÁFICOS ---
+if st.button('Generar Visualizaciones'):
     db = SessionLocal()
     motor = MotorPsicometrico(db)
     datos = motor.preparar_datos_burbujas()
     db.close()
 
     if not datos:
-        st.warning('No hay datos suficientes con tipo "GASTO".')
+        st.warning('No hay datos suficientes para graficar.')
     else:
-        fig, ax = plt.subplots(figsize=(10, 6))
-        
-        # Dibujamos las burbujas
-        for d in datos:
-            ax.scatter(d['monto'], d['satisfaccion'], s=d['peso']*10, alpha=0.6)
-            ax.annotate(d['descripcion'], (d['monto'], d['satisfaccion']))
+        # Creamos dos columnas para mostrar los gráficos lado a lado
+        col_graf1, col_graf2 = st.columns(2)
 
-        ax.set_xlabel('Monto ($)')
-        ax.set_ylabel('Satisfacción (1-10)')
-        ax.set_title('Mapa de Valor Emocional')
-        st.pyplot(fig)
+        with col_graf1:
+            st.write("### 🫧 Mapa de Valor")
+            fig1, ax1 = plt.subplots()
+            for d in datos:
+                ax1.scatter(d['monto'], d['satisfaccion'], s=d['peso']*10, alpha=0.6)
+                ax1.annotate(d['descripcion'], (d['monto'], d['satisfaccion']))
+            ax1.set_xlabel('Monto ($)')
+            ax1.set_ylabel('Satisfacción')
+            st.pyplot(fig1)
+
+        with col_graf2:
+            st.write("### 🍰 Distribución de Gastos")
+            # Extraemos etiquetas y valores para el pastel
+            labels = [d['descripcion'] for d in datos]
+            sizes = [d['monto'] for d in datos]
+            
+            fig2, ax2 = plt.subplots()
+            # Creamos el gráfico de pastel
+            ax2.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=140, shadow=True)
+            ax2.axis('equal')  # Para que el pastel sea un círculo
+            st.pyplot(fig2)
 # --- SECCIÓN 3: DIAGNÓSTICO DE LA IA ---
 st.divider()
 st.subheader("🤖 Diagnóstico de la IA Financiera")
