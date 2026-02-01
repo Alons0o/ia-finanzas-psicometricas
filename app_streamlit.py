@@ -59,32 +59,40 @@ if opcion == "Inicio":
     st.subheader("📊 Última Actividad (Impacto Visual)")
     
     if not movimientos_db:
-        st.info("No hay registros. Comienza en 'Registrar Movimiento'.")
+        st.info("No hay registros aún.")
     else:
         # Mostramos los últimos 5 movimientos
         for m in reversed(movimientos_db[-5:]):
-            # Calculamos el porcentaje que representa este gasto/ingreso sobre su total
-            total_referencia = total_ingresos if m.tipo == "INGRESO" else total_gastos
-            # Evitamos división por cero
-            porcentaje = (m.monto / total_referencia) if total_referencia > 0 else 0
-            # Limitamos a 1.0 (100%) por seguridad visual
-            porcentaje_clamped = min(float(porcentaje), 1.0)
+            # Determinamos el total de referencia y el color
+            if m.tipo == "INGRESO":
+                total_ref = total_ingresos
+                color_hex = "#28a745" # Verde
+                emoji = "💰"
+            else:
+                total_ref = total_gastos
+                color_hex = "#dc3545" # Rojo
+                emoji = "💸"
             
-            # Formato de color y etiquetas
-            color_barra = "green" if m.tipo == "INGRESO" else "red"
-            emoji = "💰" if m.tipo == "INGRESO" else "💸"
+            porcentaje = (m.monto / total_ref * 100) if total_ref > 0 else 0
+            porcentaje = min(porcentaje, 100) # Límite visual
             
-            # Diseño con columnas: Nombre/Monto | Barra de impacto
-            col_text, col_bar = st.columns([1, 2])
+            # Columnas: Información | Barra Ancha
+            col_info, col_visual = st.columns([1, 2])
             
-            with col_text:
-                st.write(f"{emoji} **{m.descripcion}** \n${m.monto:,.2f}")
+            with col_info:
+                st.write(f"{emoji} **{m.descripcion}**")
+                st.write(f"**${m.monto:,.2f}**")
             
-            with col_bar:
-                # Renderizamos una barra de progreso visual
-                st.markdown(f"<small>Impacto en {m.tipo.lower()}s</small>", unsafe_allow_html=True)
-                st.progress(porcentaje_clamped)
-
+            with col_visual:
+                # Barra de progreso personalizada con HTML/CSS
+                # El 'height: 25px' controla el ancho (grosor) de la barra
+                st.markdown(f"""
+                    <div style="width: 100%; background-color: #e0e0e0; border-radius: 10px; height: 25px; margin-top: 10px;">
+                        <div style="width: {porcentaje}%; background-color: {color_hex}; height: 25px; border-radius: 10px; text-align: center; color: white; font-size: 12px; line-height: 25px;">
+                            {porcentaje:.1f}%
+                        </div>
+                    </div>
+                """, unsafe_allow_html=True)
 elif opcion == "Visualizaciones":
     st.title("📊 Análisis de Datos")
     db = SessionLocal()
