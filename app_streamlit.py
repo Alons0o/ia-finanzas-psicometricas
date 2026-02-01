@@ -7,7 +7,7 @@ from app.models.satisfaccion import MetricaSatisfaccion
 
 st.set_page_config(page_title="IA Finanzas Psicométricas", page_icon="🧠", layout="wide")
 
-st.title("🧠 IA Finanzas Psicométricas")
+st.title("IA Finanzas Psicométricas")
 st.markdown("Analizando el costo emocional de tus gastos.")
 
 # --- INICIALIZACIÓN DE ESTADOS (Para persistencia de botones) ---
@@ -163,14 +163,14 @@ if st.session_state.ver_graficos:
 # --- LÓGICA DE DIAGNÓSTICO IA ---
 if st.session_state.ver_ia:
     st.divider()
-    st.subheader("🤖 Diagnóstico de la IA Financiera")
+    st.subheader("Diagnóstico de la IA Financiera")
     db = SessionLocal()
     motor = MotorPsicometrico(db)
     analisis = motor.calcular_costo_insatisfaccion()
     
     if analisis["total_ineficiente"] > 0:
         st.error(f"⚠️ He detectado {analisis['cantidad_gastos']} gasto(s) que no te hacen feliz.")
-        st.markdown("### 📋 Gastos Detectados:")
+        st.markdown("### Gastos Detectados:")
         for detalle in analisis["detalles"]:
             st.warning(f"👉 **{detalle['desc']}**: Costó **${detalle['monto']}** (Satisfacción: {detalle['nivel']}/10)")
         
