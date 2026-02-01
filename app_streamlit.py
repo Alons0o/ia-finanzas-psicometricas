@@ -11,7 +11,7 @@ st.set_page_config(page_title="IA Finanzas Psicométricas", page_icon="🧠", la
 
 # --- BARRA LATERAL (MENÚ MODERNO) ---
 with st.sidebar:
-    st.markdown("<h2 style='text-align: center;'>🧠 Menú</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center;'> Menú</h2>", unsafe_allow_html=True)
     
     opcion = option_menu(
         menu_title=None, 
@@ -93,7 +93,7 @@ if opcion == "Inicio":
 
 # --- ESTA ES LA PARTE QUE DEBES REVISAR (Asegúrate que esté al mismo nivel que el 'if' de arriba) ---
 elif opcion == "Registrar Movimiento":
-    st.title("📝 Registrar Movimiento")
+    st.title("Registrar Movimiento")
     
     with st.form("formulario_gastos", clear_on_submit=True):
         col1, col2 = st.columns(2)
@@ -135,7 +135,7 @@ elif opcion == "Registrar Movimiento":
         else:
             st.warning("⚠️ Por favor, completa la descripción y el monto.")
 elif opcion == "Visualizaciones":
-    st.title("📊 Análisis de Datos")
+    st.title("Análisis de Datos")
     db = SessionLocal()
     motor = MotorPsicometrico(db)
     datos_burbujas = motor.preparar_datos_burbujas()
@@ -204,7 +204,7 @@ elif opcion == "Recomendaciones":
     db.close()
 
 elif opcion == "Gestionar Historial":
-    st.title("⚙️ Gestión de Historial")
+    st.title("Gestión de Historial")
     db = SessionLocal()
     
     # Obtenemos los datos uniendo Movimiento con su Satisfacción
@@ -227,7 +227,7 @@ elif opcion == "Gestionar Historial":
         st.table(datos_tabla)
 
         st.divider()
-        st.subheader("🛠️ Acciones de historial")
+        st.subheader("Acciones de historial")
 
         # 2. Columnas para Editar y Eliminar
         col_edit, col_del = st.columns(2)
