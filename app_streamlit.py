@@ -49,7 +49,7 @@ if boton_guardar:
 
 st.divider()
 
-# --- SECCIÓN 2: GRÁFICOS ---
+# --- SECCIÓN 2: VISUALIZACIONES (Burbujas y Pastel) ---
 if st.button('Generar Visualizaciones'):
     db = SessionLocal()
     motor = MotorPsicometrico(db)
@@ -57,43 +57,55 @@ if st.button('Generar Visualizaciones'):
     db.close()
 
     if not datos:
-        st.warning('No hay datos suficientes para graficar.')
+        st.warning('No hay datos suficientes (necesitas registros tipo "GASTO").')
     else:
-        # Creamos dos columnas para mostrar los gráficos lado a lado
-        col_graf1, col_graf2 = st.columns(2)
+        # Creamos dos columnas: una para cada gráfico
+        col_izq, col_der = st.columns(2)
 
-        with col_graf2:
-            st.write("### 🍰 Distribución de Gastos ($)")
+        with col_izq:
+            st.write("### 🫧 Mapa de Valor")
+            fig_burbuja, ax_burbuja = plt.subplots(figsize=(6, 5))
+            for d in datos:
+                # Dibujamos cada burbuja
+                ax_burbuja.scatter(d['monto'], d['satisfaccion'], s=d['peso']*10, alpha=0.6)
+                ax_burbuja.annotate(d['descripcion'], (d['monto'], d['satisfaccion']), fontsize=8)
             
-            # CAMBIO AQUÍ: 'descripcion' con 'c' y sin 'i' al final
-            labels = [d['descripcion'] for d in datos] 
+            ax_burbuja.set_xlabel('Monto ($)')
+            ax_burbuja.set_ylabel('Satisfacción (1-10)')
+            st.pyplot(fig_burbuja)
+
+        with col_der:
+            st.write("### 🍰 Distribución de Gastos")
+            labels = [d['descripcion'] for d in datos]
             sizes = [d['monto'] for d in datos]
             
+            # Función para el monto dentro del pastel
             def func_monto(val):
                 actual_val = val/100.*sum(sizes)
-                return f"${actual_val:,.2f}"
+                return f"${actual_val:,.1f}"
 
-            fig2, ax2 = plt.subplots(figsize=(8, 6))
+            fig_pastel, ax_pastel = plt.subplots(figsize=(6, 5))
             colores = plt.cm.Paired(range(len(labels)))
 
-            wedges, texts, autotexts = ax2.pie(
+            # Dibujamos pastel sin etiquetas de texto para que no estorben
+            wedges, texts, autotexts = ax_pastel.pie(
                 sizes, 
                 autopct=func_monto, 
                 startangle=140, 
                 colors=colores,
-                textprops={'color':"w", 'weight':'bold', 'fontsize':9}
+                textprops={'color':"w", 'weight':'bold', 'fontsize':8}
             )
 
-            ax2.legend(
-                wedges, 
-                labels,
+            # Leyenda a la derecha
+            ax_pastel.legend(
+                wedges, labels,
                 title="Gastos",
                 loc="center left",
-                bbox_to_anchor=(1, 0, 0.5, 1)
+                bbox_to_anchor=(1, 0, 0.5, 1),
+                fontsize=8
             )
-
-            ax2.axis('equal')
-            st.pyplot(fig2)
+            ax_pastel.axis('equal')
+            st.pyplot(fig_pastel)
 # --- SECCIÓN 3: DIAGNÓSTICO DE LA IA ---
 st.divider()
 st.subheader("🤖 Diagnóstico de la IA Financiera")
