@@ -75,7 +75,7 @@ with col_acc2:
     st.button('🤖 Obtener Recomendaciones', on_click=activar_ia, use_container_width=True)
 
 if st.session_state.ver_graficos:
-    st.subheader("📊 Análisis Financiero y Psicométrico")
+    st.subheader("Análisis Financiero y Psicométrico")
     db = SessionLocal()
     motor = MotorPsicometrico(db)
     
