@@ -135,51 +135,59 @@ elif opcion == "Registrar Movimiento":
         else:
             st.warning("⚠️ Por favor, completa la descripción y el monto.")
 elif opcion == "Visualizaciones":
-    st.title("Análisis de Datos")
+    st.title("Análisis Visual de Finanzas")
     db = SessionLocal()
-    motor = MotorPsicometrico(db)
-    datos_burbujas = motor.preparar_datos_burbujas()
+    movimientos = db.query(Movimiento).all()
     db.close()
 
-    if not movimientos_db:
-        st.warning("Sin datos suficientes.")
-    else:
-        # Gráficos de Pastel
-        col_ing, col_gas = st.columns(2)
+    if movimientos:
+        # --- PREPARACIÓN DE DATOS ---
+        descripciones = [m.descripcion for m in movimientos if m.tipo == "GASTO"]
+        montos = [m.monto for m in movimientos if m.tipo == "GASTO"]
         
-        def dibujar_pastel(ax, datos_lista, titulo, mapa_color):
-            resumen = {}
-            for d in datos_lista:
-                resumen[d.descripcion] = resumen.get(d.descripcion, 0) + d.monto
-            if not resumen:
-                ax.text(0.5, 0.5, "Sin datos", ha='center')
-                ax.axis('off')
-                return
-            labels, sizes = list(resumen.keys()), list(resumen.values())
-            n = len(labels)
-            colores = plt.get_cmap(mapa_color)([i/(n if n > 1 else 1) for i in range(n)])
-            ax.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=140, colors=colores)
-            ax.set_title(titulo, fontweight='bold')
+        # Diccionario de colores para que coincidan con el Mapa de Valor
+        # Puedes añadir aquí tus descripciones específicas y sus colores
+        color_map = {
+            "Comida": "#FF9999",
+            "Transporte": "#66B3FF",
+            "Alquiler": "#99FF99",
+            "Entretenimiento": "#FFCC99"
+        }
+        
+        # Color por defecto si la descripción no está en el mapa
+        colores = [color_map.get(desc, plt.cm.Pastel1(i/len(descripciones))) for i, desc in enumerate(descripciones)]
 
-        with col_ing:
-            fig_ing, ax_ing = plt.subplots()
-            dibujar_pastel(ax_ing, [m for m in movimientos_db if m.tipo=="INGRESO"], "Ingresos", "viridis")
-            st.pyplot(fig_ing)
+        # --- GRÁFICO DE GASTOS ---
+        fig, ax = plt.subplots()
+        
+        # autopct='%1.2f' cambia el porcentaje por el valor real (formateado)
+        def func(pct, allvals):
+            absolute = pct/100.*sum(allvals)
+            return f"${absolute:,.0f}"
 
-        with col_gas:
-            fig_gas, ax_gas = plt.subplots()
-            dibujar_pastel(ax_gas, [m for m in movimientos_db if m.tipo=="GASTO"], "Gastos", "tab20")
-            st.pyplot(fig_gas)
+        wedges, texts, autotexts = ax.pie(
+            montos, 
+            labels=None,          # Quitamos los nombres de las rebanadas
+            autopct=lambda pct: func(pct, montos), 
+            colors=colores,
+            startangle=140,
+            pctdistance=0.75,     # Posición del monto dentro del círculo
+            textprops={'color':"w", 'weight':'bold', 'size': 12} # Texto blanco y legible
+        )
 
-        st.divider()
-        st.write("### Mapa de Valor (Gastos)")
-        if datos_burbujas:
-            fig_b, ax_b = plt.subplots(figsize=(10, 4))
-            for d in datos_burbujas:
-                ax_b.scatter(d['monto'], d['satisfaccion'], s=d['peso']*15, alpha=0.6)
-                ax_b.annotate(d['descripcion'], (d['monto'], d['satisfaccion']))
-            st.pyplot(fig_b)
+        # Añadimos la leyenda con nombres y porcentajes fuera del círculo
+        ax.legend(
+            wedges, 
+            [f"{d} ({ (m/sum(montos))*100:.1f}%)" for d, m in zip(descripciones, montos)],
+            title="Categorías",
+            loc="center left",
+            bbox_to_anchor=(1, 0, 0.5, 1)
+        )
 
+        st.subheader("Distribución de Gastos")
+        st.pyplot(fig)
+    else:
+        st.info("No hay datos para mostrar gráficos.")
 elif opcion == "Recomendaciones":
     st.title("🤖 Recomendaciones") # Título actualizado
     db = SessionLocal()
