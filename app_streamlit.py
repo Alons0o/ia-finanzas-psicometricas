@@ -29,7 +29,7 @@ db.close()
 
 # --- 1. SECCIÓN: INICIO ---
 if opcion == "🏠 Inicio":
-    st.title("🏠 Dashboard de Inicio")
+    st.title("Dashboard de Inicio")
     st.markdown("Bienvenido. Aquí tienes el estado actual de tus cuentas.")
     
     col1, col2, col3 = st.columns(3)
@@ -53,7 +53,7 @@ if opcion == "🏠 Inicio":
 
 # --- 2. SECCIÓN: REGISTRO ---
 elif opcion == "📝 Registrar Movimiento":
-    st.title("📝 Registrar nuevo movimiento")
+    st.title("Registrar nuevo movimiento")
     with st.form("formulario_gastos", clear_on_submit=True):
         col1, col2 = st.columns(2)
         with col1:
@@ -87,7 +87,7 @@ elif opcion == "📝 Registrar Movimiento":
 
 # --- 3. SECCIÓN: VISUALIZACIONES ---
 elif opcion == "📊 Visualizaciones":
-    st.title("📊 Análisis de Datos")
+    st.title("Análisis de Datos")
     db = SessionLocal()
     motor = MotorPsicometrico(db)
     datos_burbujas = motor.preparar_datos_burbujas()
@@ -136,7 +136,7 @@ elif opcion == "📊 Visualizaciones":
 
 # --- 4. SECCIÓN: RECOMENDACIONES ---
 elif opcion == "🤖 Recomendaciones IA":
-    st.title("🤖 Diagnóstico de la IA")
+    st.title("Recomendaciones")
     db = SessionLocal()
     motor = MotorPsicometrico(db)
     analisis = motor.calcular_costo_insatisfaccion()
@@ -152,7 +152,7 @@ elif opcion == "🤖 Recomendaciones IA":
 
 # --- 5. SECCIÓN: GESTIÓN (HISTORIAL) ---
 elif opcion == "⚙️ Gestionar Historial":
-    st.title("⚙️ Gestión de Historial")
+    st.title("Gestión de Historial")
     db = SessionLocal()
     historial = db.query(Movimiento).join(MetricaSatisfaccion).order_by(Movimiento.fecha.desc()).all()
     
