@@ -145,12 +145,10 @@ elif opcion == "Visualizaciones":
         st.warning("Sin datos suficientes.")
     else:
         # --- CONFIGURACIÓN DE COLORES SINCRONIZADOS ---
-        # Creamos un mapa de colores basado en las descripciones únicas de los burbujas
         descripciones_unicas = list(set(d['descripcion'] for d in datos_burbujas))
         color_palette = plt.get_cmap("tab20")
         color_map = {desc: color_palette(i / len(descripciones_unicas)) for i, desc in enumerate(descripciones_unicas)}
 
-        # --- Gráficos de Pastel ---
         col_ing, col_gas = st.columns(2)
         
         def dibujar_pastel(ax, datos_lista, titulo, es_gasto=False):
@@ -165,35 +163,33 @@ elif opcion == "Visualizaciones":
             
             labels, sizes = list(resumen.keys()), list(resumen.values())
             
-            # Asignación de colores: Si es gasto, usa el color_map del mapa de valor
             if es_gasto:
-                colores = [color_map.get(label, "#gray") for label in labels]
+                colores = [color_map.get(label, "#cccccc") for label in labels]
             else:
                 colores = plt.get_cmap("viridis")([i/len(labels) for i in range(len(labels))])
 
-            # Función para mostrar solo el monto ($) dentro del círculo
             def format_monto(pct, allvals):
                 absolute = pct/100.*sum(allvals)
                 return f"${absolute:,.0f}"
 
+            # --- CORRECCIÓN AQUÍ: Eliminamos el duplicado en textprops ---
             wedges, texts, autotexts = ax.pie(
                 sizes, 
-                labels=None,           # Quitamos nombres del círculo
+                labels=None, 
                 autopct=lambda pct: format_monto(pct, sizes), 
                 startangle=140, 
                 colors=colores,
-                pctdistance=0.75,      # Posición del monto
-                textprops={'color': "w", 'weight': 'bold', 'fontweight': 'bold'}
+                pctdistance=0.75,
+                textprops={'color': "w", 'fontweight': 'bold', 'size': 10} 
             )
             
-            # Añadimos leyenda lateral con Nombre y Porcentaje
             ax.legend(
                 wedges, 
                 [f"{l} ({ (s/sum(sizes))*100:.1f}%)" for l, s in zip(labels, sizes)],
                 title="Categorías",
                 loc="center left",
-                bbox_to_anchor=(1, 0, 0.5, 1),
-                fontsize=9
+                bbox_to_anchor=(0.9, 0, 0.5, 1),
+                fontsize=8
             )
             
             ax.set_title(titulo, fontweight='bold', pad=20)
@@ -205,7 +201,6 @@ elif opcion == "Visualizaciones":
 
         with col_gas:
             fig_gas, ax_gas = plt.subplots()
-            # Marcamos es_gasto=True para que sincronice colores
             dibujar_pastel(ax_gas, [m for m in movimientos_db if m.tipo=="GASTO"], "Gastos", es_gasto=True)
             st.pyplot(fig_gas)
 
@@ -215,7 +210,6 @@ elif opcion == "Visualizaciones":
         if datos_burbujas:
             fig_b, ax_b = plt.subplots(figsize=(10, 5))
             for d in datos_burbujas:
-                # Usamos el mismo color_map que el gráfico de pastel
                 c_burbuja = color_map.get(d['descripcion'], "blue")
                 ax_b.scatter(d['monto'], d['satisfaccion'], s=d['peso']*15, alpha=0.7, color=c_burbuja, edgecolors="white")
                 ax_b.annotate(f" {d['descripcion']}", (d['monto'], d['satisfaccion']), fontsize=9, fontweight='bold')
