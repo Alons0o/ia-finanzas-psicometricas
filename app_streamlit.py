@@ -143,16 +143,26 @@ elif opcion == "Visualizaciones":
             st.pyplot(fig_b)
 
 elif opcion == "Recomendaciones IA":
-    st.title("🤖 Diagnóstico de la IA")
+    st.title("🤖 Recomendaciones") # Título actualizado
     db = SessionLocal()
     motor = MotorPsicometrico(db)
     analisis = motor.calcular_costo_insatisfaccion()
+    
     if analisis["total_ineficiente"] > 0:
-        st.error(f"⚠️ Detectados {analisis['cantidad_gastos']} gastos ineficientes.")
-        for d in analisis["detalles"]:
-            st.warning(f"👉 **{d['desc']}**: ${d['monto']} (Nivel: {d['nivel']}/10)")
+        st.error(f"⚠️ He detectado {analisis['cantidad_gastos']} gasto(s) ineficientes.")
+        for detalle in analisis["detalles"]:
+            st.warning(f"👉 **{detalle['desc']}**: ${detalle['monto']} (Nivel: {detalle['nivel']}/10)")
+        
+        st.info(f"Si eliminas estos gastos, podrías recuperar **${analisis['total_ineficiente']}** mensuales.")
+        
+        # Simulación de meta (puedes ajustar los valores)
+        simulacion = motor.simular_alcance_meta(monto_meta=1000, ahorro_mensual_base=100)
+        st.success(f"📈 **Plan de Optimización:** Alcanzarías tu meta en **{simulacion['meses_optimizado']} meses**.")
     else:
-        st.success("✨ ¡Todo bien! Tus gastos te traen felicidad.")
+        # ESTO ES LO QUE FALTABA: El mensaje verde final
+        st.balloons()
+        st.success("✨ ¡Excelente! Todos tus gastos actuales están alineados con tu bienestar y felicidad.")
+    
     db.close()
 
 elif opcion == "Gestionar Historial":
