@@ -56,45 +56,34 @@ if opcion == "Inicio":
                 delta_color=color_saldo)
     
     st.divider()
-    st.subheader("📜 Última Actividad")
+    st.subheader("📊 Última Actividad (Impacto Visual)")
+    
     if not movimientos_db:
         st.info("No hay registros. Comienza en 'Registrar Movimiento'.")
     else:
+        # Mostramos los últimos 5 movimientos
         for m in reversed(movimientos_db[-5:]):
-            st.write(f"{'🟢' if m.tipo == 'INGRESO' else '🔴'} **{m.descripcion}**: ${m.monto:,.2f}")
-
-elif opcion == "Registrar Movimiento":
-    st.title("📝 Registrar Movimiento")
-    with st.form("formulario_gastos", clear_on_submit=True):
-        col1, col2 = st.columns(2)
-        with col1:
-            descripcion = st.text_input("Descripción", placeholder="Ej. Sueldo, Netflix...")
-            monto = st.number_input("Monto ($)", value=None, placeholder="0.00", step=0.01)
-        with col2:
-            tipo = st.selectbox("Tipo", ["GASTO", "INGRESO"])
-            satisfaccion_nivel = st.slider("Satisfacción (1-10)", 1, 10, 5)
-        
-        comentario = st.text_area("Comentario emocional")
-        boton_guardar = st.form_submit_button("Guardar Registro")
-
-    if boton_guardar:
-        if descripcion and monto and monto > 0:
-            db = SessionLocal()
-            try:
-                nuevo_mov = Movimiento(tipo=tipo, descripcion=descripcion, monto=monto)
-                db.add(nuevo_mov)
-                db.flush()
-                nueva_metrica = MetricaSatisfaccion(movimiento_id=nuevo_mov.id, nivel=satisfaccion_nivel, comentario=comentario)
-                db.add(nueva_metrica)
-                db.commit()
-                st.success("✅ ¡Guardado con éxito!")
-            except Exception as e:
-                db.rollback()
-                st.error(f"Error: {e}")
-            finally:
-                db.close()
-        else:
-            st.warning("⚠️ Ingresa descripción y monto válido.")
+            # Calculamos el porcentaje que representa este gasto/ingreso sobre su total
+            total_referencia = total_ingresos if m.tipo == "INGRESO" else total_gastos
+            # Evitamos división por cero
+            porcentaje = (m.monto / total_referencia) if total_referencia > 0 else 0
+            # Limitamos a 1.0 (100%) por seguridad visual
+            porcentaje_clamped = min(float(porcentaje), 1.0)
+            
+            # Formato de color y etiquetas
+            color_barra = "green" if m.tipo == "INGRESO" else "red"
+            emoji = "💰" if m.tipo == "INGRESO" else "💸"
+            
+            # Diseño con columnas: Nombre/Monto | Barra de impacto
+            col_text, col_bar = st.columns([1, 2])
+            
+            with col_text:
+                st.write(f"{emoji} **{m.descripcion}** \n${m.monto:,.2f}")
+            
+            with col_bar:
+                # Renderizamos una barra de progreso visual
+                st.markdown(f"<small>Impacto en {m.tipo.lower()}s</small>", unsafe_allow_html=True)
+                st.progress(porcentaje_clamped)
 
 elif opcion == "Visualizaciones":
     st.title("📊 Análisis de Datos")
