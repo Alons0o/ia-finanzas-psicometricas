@@ -74,70 +74,65 @@ with col_acc1:
 with col_acc2:
     st.button('🤖 Obtener Recomendaciones', on_click=activar_ia, use_container_width=True)
 
-# --- LÓGICA DE VISUALIZACIONES (REEMPLAZA DESDE AQUÍ) ---
+# --- LÓGICA DE VISUALIZACIONES (ACTUALIZADA PARA INGRESOS Y SALDO) ---
 if st.session_state.ver_graficos:
-    st.subheader("📊 Visualizaciones de Datos Sincronizadas")
+    st.subheader("📊 Resumen Financiero Completo")
     db = SessionLocal()
-    motor = MotorPsicometrico(db)
-    datos = motor.preparar_datos_burbujas()
+    
+    # 1. Obtener todos los movimientos (Gastos e Ingresos)
+    # Nota: Asegúrate de que tu modelo 'Movimiento' tenga el campo 'tipo'
+    movimientos_db = db.query(Movimiento).all()
     db.close()
 
-    if not datos:
-        st.warning('No hay datos suficientes (necesitas registros tipo "GASTO").')
+    if not movimientos_db:
+        st.warning('No hay datos suficientes para calcular el saldo.')
     else:
-        # 1. Crear un mapa de colores único para cada descripción
-        descripciones_unicas = list(set(d['descripcion'] for d in datos))
-        # Usamos una paleta de colores fija
-        paleta = plt.cm.get_cmap('tab10', len(descripciones_unicas))
-        mapa_colores = {desc: paleta(i) for i, desc in enumerate(descripciones_unicas)}
+        # Separar datos
+        gastos = [m for m in movimientos_db if m.tipo == "GASTO"]
+        ingresos = [m for m in movimientos_db if m.tipo == "INGRESO"]
+        
+        monto_inicial = 0.0  # Puedes cambiar esto por un st.number_input arriba si quieres
+        total_gastos = sum(g.monto for g in gastos)
+        total_ingresos = sum(i.monto for i in ingresos)
+        saldo_final = monto_inicial + total_ingresos - total_gastos
 
-        col_izq, col_der = st.columns(2)
+        # --- FILA 1: MÉTRICAS RESUMEN ---
+        c1, c2, c3 = st.columns(3)
+        c1.metric("📥 Total Ingresos", f"${total_ingresos:,.2f}")
+        c2.metric("📤 Total Gastos", f"${total_gastos:,.2f}", delta=f"-${total_gastos:,.2f}", delta_color="inverse")
+        c3.metric("💰 Saldo Final", f"${saldo_final:,.2f}")
 
-        with col_izq:
-            st.write("### 🫧 Mapa de Valor")
-            fig_burbuja, ax_burbuja = plt.subplots(figsize=(6, 5))
-            for d in datos:
-                # Sincronizamos el color aquí
-                color_fijo = mapa_colores[d['descripcion']]
-                ax_burbuja.scatter(
-                    d['monto'], 
-                    d['satisfaccion'], 
-                    s=d['peso']*10, 
-                    color=color_fijo, 
-                    alpha=0.7,
-                    edgecolors='w'
-                )
-                ax_burbuja.annotate(d['descripcion'], (d['monto'], d['satisfaccion']), fontsize=8, fontweight='bold')
-            
-            ax_burbuja.set_xlabel('Monto ($)')
-            ax_burbuja.set_ylabel('Satisfacción (1-10)')
-            st.pyplot(fig_burbuja)
+        st.divider()
 
-        with col_der:
-            st.write("### 🍰 Distribución de Gastos")
-            labels = [d['descripcion'] for d in datos]
-            sizes = [d['monto'] for d in datos]
-            
-            # Sincronizamos el color del pastel usando el mismo mapa
-            colores_pastel = [mapa_colores[label] for label in labels]
-            
-            def func_monto(val):
-                actual_val = val/100.*sum(sizes)
-                return f"${actual_val:,.1f}"
-            
-            fig_pastel, ax_pastel = plt.subplots(figsize=(6, 5))
-            wedges, texts, autotexts = ax_pastel.pie(
-                sizes, 
-                autopct=func_monto, 
-                startangle=140, 
-                colors=colores_pastel, 
-                textprops={'color':"w", 'weight':'bold', 'fontsize':8}
+        # --- FILA 2: GRÁFICOS ---
+        col_ing, col_gas = st.columns(2)
+
+        # Mapa de colores para consistencia (Ingresos en tonos verdes, Gastos en tonos cálidos/variados)
+        def crear_pastel(ax, datos, titulo, paleta):
+            if not datos:
+                ax.text(0.5, 0.5, "Sin datos", ha='center')
+                return
+            labels = [d.descripcion for d in datos]
+            sizes = [d.monto for d in datos]
+            colores = plt.get_cmap(paleta)(range(len(labels)))
+            wedges, texts, autotexts = ax.pie(
+                sizes, autopct=lambda p: f'${p*sum(sizes)/100:,.1f}',
+                startangle=140, colors=colores, textprops={'color':"w", 'weight':'bold', 'fontsize':8}
             )
-            ax_pastel.legend(wedges, labels, title="Gastos", loc="center left", bbox_to_anchor=(1, 0, 0.5, 1), fontsize=8)
-            ax_pastel.axis('equal')
-            st.pyplot(fig_pastel)
-            
-            st.metric(label="💰 Gasto Total Registrado", value=f"${sum(sizes):,.2f}")
+            ax.set_title(titulo)
+            ax.legend(wedges, labels, title="Detalle", loc="center left", bbox_to_anchor=(1, 0, 0.5, 1), fontsize=7)
+
+        with col_ing:
+            st.write("### 📥 Distribución de Ingresos")
+            fig_ing, ax_ing = plt.subplots(figsize=(5, 4))
+            crear_pastel(ax_ing, ingresos, "Ingresos", "Greens")
+            st.pyplot(fig_ing)
+
+        with col_gas:
+            st.write("### 🍰 Distribución de Gastos")
+            fig_gas, ax_gas = plt.subplots(figsize=(5, 4))
+            crear_pastel(ax_gas, gastos, "Gastos", "Oranges")
+            st.pyplot(fig_gas)
 # --- LÓGICA DE DIAGNÓSTICO IA ---
 if st.session_state.ver_ia:
     st.divider()
