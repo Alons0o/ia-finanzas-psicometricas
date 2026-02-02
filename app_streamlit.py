@@ -9,16 +9,26 @@ from app.models.movimiento import Movimiento
 from app.models.satisfaccion import MetricaSatisfaccion
 # 1. Función de carga ultra-rápida con caché de objeto completo
 @st.cache_data
+def get_base64_image(path):
+    """Carga la imagen y la convierte a base64 una sola vez."""
+    if os.path.exists(path):
+        with open(path, "rb") as f:
+            data = f.read()
+        return base64.b64encode(data).decode()
+    return None
+
+@st.cache_data
 def generar_html_caritas(nivel_seleccionado):
+    """Genera el bloque HTML completo usando la función anterior."""
     iconos_html = ""
     for i in range(1, 11):
         ruta_local = f"assets/caritas/carita{i}.PNG"
-        img_b64 = get_base64_image(ruta_local) # Esta función también debe tener @st.cache_data
+        # Aquí es donde fallaba: ahora get_base64_image ya existe arriba
+        img_b64 = get_base64_image(ruta_local) 
         
         es_activo = (nivel_seleccionado == i)
         color = "#007bff" if i <= 3 else "#6c757d" if i <= 7 else "#28a745"
         
-        # Estilo optimizado sin filtros pesados para máxima fluidez
         style = (f"transform: scale(1.3); opacity: 1; border-bottom: 4px solid {color};") if es_activo else \
                 "transform: scale(0.9); opacity: 0.3; filter: grayscale(100%);"
         
