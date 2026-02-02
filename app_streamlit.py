@@ -1,11 +1,16 @@
 import streamlit as st
+import base64
+import os  # Esta también nos servirá
 from streamlit_option_menu import option_menu
 import matplotlib.pyplot as plt
 from app.db.session import SessionLocal
 from app.ia.analisis_psicometrico import MotorPsicometrico
 from app.models.movimiento import Movimiento
 from app.models.satisfaccion import MetricaSatisfaccion
-
+def get_base64_image(path):
+    with open(path, "rb") as f:
+        data = f.read()
+    return base64.b64encode(data).decode()
 # --- CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="IA Finanzas Psicométricas", page_icon="🧠", layout="wide")
 
@@ -48,40 +53,29 @@ if opcion == "Inicio":
     st.title("Dashboard de Inicio")
     st.markdown("### Estado Financiero Actual")
     
-    # --- MÉTRICAS SUPERIORES (Se mantienen intactas) ---
     c1, c2, c3 = st.columns(3)
     c1.metric("📥 Total Ingresos", f"${total_ingresos:,.2f}")
     c2.metric("📤 Total Gastos", f"${total_gastos:,.2f}", delta=f"-${total_gastos:,.2f}", delta_color="inverse")
-    
     color_saldo = "normal" if saldo_final >= 0 else "inverse"
     c3.metric("Dinero Restante", f"${saldo_final:,.2f}", 
                 delta="POSITIVO" if saldo_final >= 0 else "DÉFICIT", 
                 delta_color=color_saldo)
     
     st.divider()
-    
-    # --- ÚLTIMA ACTIVIDAD (Solo una barra por registro) ---
-    st.subheader("📊 Última Actividad (Impacto Proporcional)")
+    st.subheader("Última Actividad (Impacto Proporcional)")
     
     if not movimientos_db:
         st.info("No hay registros aún.")
     else:
-        # Calculamos el valor máximo una sola vez antes del bucle
         valor_maximo_global = max([m.monto for m in movimientos_db]) if movimientos_db else 1
-        
-        # Tomamos solo los últimos 5 para evitar que la página sea eterna
         ultimos_movimientos = reversed(movimientos_db[-5:])
         
         for m in ultimos_movimientos:
-            # Definir colores según el tipo
             es_ingreso = (m.tipo.upper() == "INGRESO")
             color_hex = "#28a745" if es_ingreso else "#dc3545"
             emoji = "💰" if es_ingreso else "💸"
-            
-            # Cálculo del porcentaje respecto al mayor valor de la historia
             porcentaje_relativo = (m.monto / valor_maximo_global * 100)
             
-            # Diseño: Título y Monto arriba, Barra abajo
             st.markdown(f"""
                 <div style="margin-top: 20px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
@@ -103,63 +97,38 @@ elif opcion == "Registrar Movimiento":
     
     with col_input:
         descripcion = st.text_input("Descripción", placeholder="Ej. Sueldo, Alquiler, Comida...")
-        monto = st.number_input("Monto ($)", value=None, placeholder="0.00", step=0.01)
+        monto = st.number_input("Monto ($)", value=0.0, step=0.01)
         tipo = st.selectbox("Tipo", ["GASTO", "INGRESO"])
 
     with col_emocion:
         satisfaccion_nivel = st.slider("Grado de Satisfacción", 1, 10, 5)
-        
-        # Mapeo de IDs de Flaticon que proporcionaste
-        ids_flaticon = [
-            "10393315", # 1 (Usamos el del 0/1)
-            "10851498", # 2
-            "725099",   # 3
-            "742753",   # 4
-            "742774",   # 5
-            "15348764", # 6
-            "520464",   # 7
-            "10851235", # 8
-            "520460",   # 9
-            "10851309"  # 10
-        ]
-
         iconos_html = ""
-        for i, id_icon in enumerate(ids_flaticon, 1):
-            url = f"https://cdn-icons-png.flaticon.com/512/{id_icon[:3] if len(id_icon) < 6 else id_icon[:4]}/{id_icon}.png"
-            # Nota: La URL de Flaticon a veces requiere ajustes de subcarpeta, 
-            # usaremos la estructura directa más común:
-            url_directa = f"https://cdn-icons-png.flaticon.com/512/{id_icon[0:4] if int(id_icon) > 1000000 else id_icon[0:3]}/{id_icon}.png"
+        for i in range(1, 11):
+            ruta_local = f"assets/caritas/carita {i}.png"
+            img_b64 = get_base64_image(ruta_local)
             
             es_activo = (satisfaccion_nivel == i)
-            if i <= 3: color = "#007bff" # Azul
-            elif i <= 7: color = "#6c757d" # Gris
-            else: color = "#28a745" # Verde
-            
+            color = "#007bff" if i <= 3 else "#6c757d" if i <= 7 else "#28a745"
             style = f"transform: scale(1.4); filter: grayscale(0%); opacity: 1; border-bottom: 3px solid {color};" if es_activo else "transform: scale(0.85); filter: grayscale(100%); opacity: 0.2;"
             
-            iconos_html += f'<div style="text-align: center; transition: 0.3s; {style} width: 9%;"><img src="{url_directa}" style="width: 100%; max-width: 30px;"><p style="font-size: 9px; margin: 0; font-weight: bold;">{i}</p></div>'
+            if img_b64:
+                src_data = f"data:image/png;base64,{img_b64}"
+                iconos_html += f'<div style="text-align: center; transition: 0.3s; {style} width: 9%;"><img src="{src_data}" style="width: 100%; max-width: 30px;"><p style="font-size: 9px; margin: 0; font-weight: bold;">{i}</p></div>'
+            else:
+                iconos_html += f'<div style="width: 9%; text-align:center;">{i}</div>'
 
-        html_final = f'<div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 15px; padding: 15px; background: #ffffff; border-radius: 15px; border: 1px solid #eee;">{iconos_html}</div>'
-        st.markdown(html_final, unsafe_allow_html=True)
+        st.markdown(f'<div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 15px; padding: 15px; background: #ffffff; border-radius: 15px; border: 1px solid #eee;">{iconos_html}</div>', unsafe_allow_html=True)
 
-    # --- 2. RESTO DEL FORMULARIO ---
     with st.form("formulario_final", clear_on_submit=True):
-        comentario = st.text_area("Comentario (¿Cómo te sentiste con este gasto/ingreso?)")
-        boton_guardar = st.form_submit_button("Guardar Registro")
-
-        if boton_guardar:
-            if descripcion and monto and monto > 0:
+        comentario = st.text_area("Comentario (¿Cómo te sentiste?)")
+        if st.form_submit_button("Guardar Registro"):
+            if descripcion and monto > 0:
                 db = SessionLocal()
                 try:
                     nuevo_mov = Movimiento(tipo=tipo, descripcion=descripcion, monto=monto)
                     db.add(nuevo_mov)
                     db.flush()
-                    
-                    nueva_metrica = MetricaSatisfaccion(
-                        movimiento_id=nuevo_mov.id, 
-                        nivel=satisfaccion_nivel, 
-                        comentario=comentario
-                    )
+                    nueva_metrica = MetricaSatisfaccion(movimiento_id=nuevo_mov.id, nivel=satisfaccion_nivel, comentario=comentario)
                     db.add(nueva_metrica)
                     db.commit()
                     st.success("✅ ¡Movimiento registrado!")
@@ -171,30 +140,6 @@ elif opcion == "Registrar Movimiento":
                     db.close()
             else:
                 st.warning("⚠️ Completa descripción y monto.")
-    if boton_guardar:
-        if descripcion and monto and monto > 0:
-            db = SessionLocal()
-            try:
-                nuevo_mov = Movimiento(tipo=tipo, descripcion=descripcion, monto=monto)
-                db.add(nuevo_mov)
-                db.flush()
-                
-                nueva_metrica = MetricaSatisfaccion(
-                    movimiento_id=nuevo_mov.id, 
-                    nivel=satisfaccion_nivel, 
-                    comentario=comentario
-                )
-                db.add(nueva_metrica)
-                db.commit()
-                st.success("✅ ¡Movimiento registrado con éxito!")
-                st.balloons()
-            except Exception as e:
-                db.rollback()
-                st.error(f"Error al guardar: {e}")
-            finally:
-                db.close()
-        else:
-            st.warning("⚠️ Por favor, completa la descripción y el monto.")
 elif opcion == "Visualizaciones":
     st.title("Análisis de Datos")
     db = SessionLocal()
