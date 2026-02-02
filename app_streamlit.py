@@ -111,27 +111,33 @@ elif opcion == "Registrar Movimiento":
             tipo = st.selectbox("Tipo", ["GASTO", "INGRESO"])
             satisfaccion_nivel = st.slider("Satisfacción Emocional (1-10)", 1, 10, 5)
             
-            # --- Lógica de Iconos y Colores (Azul para niveles bajos) ---
-            if satisfaccion_nivel <= 3:
-                color_icon = "#007bff" # Azul (Tristeza/Frialdad)
-                icon_path = "https://cdn-icons-png.flaticon.com/512/742/742782.png" # Cara muy triste/llorando
-                label_feeling = "Baja satisfacción"
-            elif satisfaccion_nivel <= 7:
-                color_icon = "#ffc107" # Amarillo/Naranja
-                icon_path = "https://cdn-icons-png.flaticon.com/512/742/742927.png" # Neutral
-                label_feeling = "Neutral / Aceptable"
-            else:
-                color_icon = "#28a745" # Verde (Felicidad)
-                icon_path = "https://cdn-icons-png.flaticon.com/512/742/742751.png" # Cara muy feliz
-                label_feeling = "¡Alta satisfacción!"
+            # --- Lógica de Estados ---
+            # Determinamos cuál de las tres caritas debe estar "activa"
+            is_sad = satisfaccion_nivel <= 3
+            is_neutral = 4 <= satisfaccion_nivel <= 7
+            is_happy = satisfaccion_nivel >= 8
 
-            # Renderizado del icono y el texto
+            # Definimos los estilos CSS para la animación
+            active_style = "transform: scale(1.3); filter: grayscale(0%); opacity: 1; transition: 0.3s;"
+            inactive_style = "transform: scale(1.0); filter: grayscale(80%); opacity: 0.4; transition: 0.3s;"
+
+            # Renderizado de los tres iconos fijos
             st.markdown(f"""
-                <div style="text-align: center; margin-top: -10px;">
-                    <img src="{icon_path}" width="45" style="filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.1));">
-                    <p style="color: {color_icon}; font-weight: bold; margin-top: 8px; font-size: 15px;">
-                        {label_feeling}
-                    </p>
+                <div style="display: flex; justify-content: space-around; align-items: center; margin-top: 10px; background: #f9f9f9; padding: 10px; border-radius: 15px;">
+                    <div style="text-align: center; {active_style if is_sad else inactive_style}">
+                        <img src="https://cdn-icons-png.flaticon.com/512/742/742782.png" width="35">
+                        <p style="font-size: 10px; color: #007bff; font-weight: bold; margin: 0;">Triste</p>
+                    </div>
+                    
+                    <div style="text-align: center; {active_style if is_neutral else inactive_style}">
+                        <img src="https://cdn-icons-png.flaticon.com/512/742/742927.png" width="35">
+                        <p style="font-size: 10px; color: #6c757d; font-weight: bold; margin: 0;">Neutral</p>
+                    </div>
+                    
+                    <div style="text-align: center; {active_style if is_happy else inactive_style}">
+                        <img src="https://cdn-icons-png.flaticon.com/512/742/742751.png" width="35">
+                        <p style="font-size: 10px; color: #28a745; font-weight: bold; margin: 0;">Feliz</p>
+                    </div>
                 </div>
             """, unsafe_allow_html=True)
         
