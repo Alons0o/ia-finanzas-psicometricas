@@ -96,56 +96,76 @@ if opcion == "Inicio":
                 </div>
             """, unsafe_allow_html=True)
 
-# --- ESTA ES LA PARTE QUE DEBES REVISAR (Asegúrate que esté al mismo nivel que el 'if' de arriba) ---
 elif opcion == "Registrar Movimiento":
     st.title("Registrar Movimiento")
     
-    with st.form("formulario_gastos", clear_on_submit=True):
-        col1, col2 = st.columns(2)
-        with col1:
-            descripcion = st.text_input("Descripción", placeholder="Ej. Sueldo, Alquiler, Comida...")
-            # value=None para que aparezca limpio
-            monto = st.number_input("Monto ($)", value=None, placeholder="0.00", step=0.01)
+    # --- 1. SLIDER FUERA DEL FORM (Para que los iconos se animen en tiempo real) ---
+    # Si lo prefieres dentro, muévelo, pero así garantizamos la animación fluida
+    col_input, col_emocion = st.columns([1, 1])
+    
+    with col_input:
+        descripcion = st.text_input("Descripción", placeholder="Ej. Sueldo, Alquiler, Comida...")
+        monto = st.number_input("Monto ($)", value=None, placeholder="0.00", step=0.01)
+        tipo = st.selectbox("Tipo", ["GASTO", "INGRESO"])
+
+    with col_emocion:
+        satisfaccion_nivel = st.slider("Satisfacción Emocional (1-10)", 1, 10, 5)
         
-        with col2:
-            tipo = st.selectbox("Tipo", ["GASTO", "INGRESO"])
-            satisfaccion_nivel = st.slider("Satisfacción Emocional (1-10)", 1, 10, 5)
-            
-            # 1. Definimos los estados (esto no se muestra, es lógica)
-            is_sad = satisfaccion_nivel <= 3
-            is_neutral = 4 <= satisfaccion_nivel <= 7
-            is_happy = satisfaccion_nivel >= 8
+        # Lógica de estados
+        is_sad = satisfaccion_nivel <= 3
+        is_neutral = 4 <= satisfaccion_nivel <= 7
+        is_happy = satisfaccion_nivel >= 8
 
-            # 2. Definimos los estilos de animación
-            active = "transform: scale(1.3); filter: grayscale(0%); opacity: 1; transition: 0.4s;"
-            inactive = "transform: scale(0.9); filter: grayscale(100%); opacity: 0.3; transition: 0.4s;"
+        active = "transform: scale(1.3); filter: grayscale(0%); opacity: 1; transition: 0.4s; pointer-events: none;"
+        inactive = "transform: scale(0.9); filter: grayscale(100%); opacity: 0.3; transition: 0.4s; pointer-events: none;"
 
-            # 3. EL TRUCO: Todo el HTML debe ir AQUÍ adentro
-            st.markdown(f"""
-                <div style="display: flex; justify-content: space-around; align-items: center; margin-top: 20px; padding: 10px; background: #ffffff; border-radius: 15px;">
-                    
-                    <div style="text-align: center; {active if is_sad else inactive}">
-                        <img src="https://cdn-icons-png.flaticon.com/512/742/742782.png" width="40">
-                        <p style="font-size: 11px; color: #007bff; font-weight: bold; margin: 0;">Triste</p>
-                    </div>
-                    
-                    <div style="text-align: center; {active if is_neutral else inactive}">
-                        <img src="https://cdn-icons-png.flaticon.com/512/742/742927.png" width="40">
-                        <p style="font-size: 11px; color: #6c757d; font-weight: bold; margin: 0;">Neutral</p>
-                    </div>
-                    
-                    <div style="text-align: center; {active if is_happy else inactive}">
-                        <img src="https://cdn-icons-png.flaticon.com/512/742/742751.png" width="40">
-                        <p style="font-size: 11px; color: #28a745; font-weight: bold; margin: 0;">Feliz</p>
-                    </div>
-
+        # Renderizado de iconos
+        st.markdown(f"""
+            <div style="display: flex; justify-content: space-around; align-items: center; margin-top: 15px; padding: 15px; background: #ffffff; border-radius: 20px; border: 1px solid #eee; box-shadow: 0px 4px 10px rgba(0,0,0,0.05);">
+                <div style="text-align: center; {active if is_sad else inactive}">
+                    <img src="https://cdn-icons-png.flaticon.com/512/742/742782.png" width="45">
+                    <p style="font-size: 11px; color: #007bff; font-weight: bold; margin: 5px 0 0 0;">Triste</p>
                 </div>
-            """, unsafe_allow_html=True)
-        
+                <div style="text-align: center; {active if is_neutral else inactive}">
+                    <img src="https://cdn-icons-png.flaticon.com/512/742/742927.png" width="45">
+                    <p style="font-size: 11px; color: #6c757d; font-weight: bold; margin: 5px 0 0 0;">Neutral</p>
+                </div>
+                <div style="text-align: center; {active if is_happy else inactive}">
+                    <img src="https://cdn-icons-png.flaticon.com/512/742/742751.png" width="45">
+                    <p style="font-size: 11px; color: #28a745; font-weight: bold; margin: 5px 0 0 0;">Feliz</p>
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    # --- 2. RESTO DEL FORMULARIO ---
+    with st.form("formulario_final", clear_on_submit=True):
         comentario = st.text_area("Comentario (¿Cómo te sentiste con este gasto/ingreso?)")
-        
         boton_guardar = st.form_submit_button("Guardar Registro")
 
+        if boton_guardar:
+            if descripcion and monto and monto > 0:
+                db = SessionLocal()
+                try:
+                    nuevo_mov = Movimiento(tipo=tipo, descripcion=descripcion, monto=monto)
+                    db.add(nuevo_mov)
+                    db.flush()
+                    
+                    nueva_metrica = MetricaSatisfaccion(
+                        movimiento_id=nuevo_mov.id, 
+                        nivel=satisfaccion_nivel, 
+                        comentario=comentario
+                    )
+                    db.add(nueva_metrica)
+                    db.commit()
+                    st.success("✅ ¡Movimiento registrado!")
+                    st.balloons()
+                except Exception as e:
+                    db.rollback()
+                    st.error(f"Error: {e}")
+                finally:
+                    db.close()
+            else:
+                st.warning("⚠️ Completa descripción y monto.")
     if boton_guardar:
         if descripcion and monto and monto > 0:
             db = SessionLocal()
