@@ -97,11 +97,10 @@ if opcion == "Inicio":
             """, unsafe_allow_html=True)
 
 elif opcion == "Registrar Movimiento":
-    st.title("Registrar Movimiento")
+    st.title("📝 Registrar Movimiento")
     
-    # --- 1. SLIDER FUERA DEL FORM (Para que los iconos se animen en tiempo real) ---
-    # Si lo prefieres dentro, muévelo, pero así garantizamos la animación fluida
-    col_input, col_emocion = st.columns([1, 1])
+    # 1. ENTRADA DE DATOS (Fuera del form para actualización en tiempo real)
+    col_input, col_emocion = st.columns([1, 1.2])
     
     with col_input:
         descripcion = st.text_input("Descripción", placeholder="Ej. Sueldo, Alquiler, Comida...")
@@ -109,33 +108,72 @@ elif opcion == "Registrar Movimiento":
         tipo = st.selectbox("Tipo", ["GASTO", "INGRESO"])
 
     with col_emocion:
-        satisfaccion_nivel = st.slider("Satisfacción Emocional (1-10)", 1, 10, 5)
+        # Slider de 1 a 10
+        satisfaccion_nivel = st.slider("Grado de Satisfacción", 1, 10, 5)
         
-        # Lógica de estados
-        is_sad = satisfaccion_nivel <= 3
-        is_neutral = 4 <= satisfaccion_nivel <= 7
-        is_happy = satisfaccion_nivel >= 8
+        # Definición de los 10 iconos (de muy triste azul a muy feliz verde)
+        iconos_url = [
+            "https://cdn-icons-png.flaticon.com/512/742/742782.png", # 1 - Muy Triste (Azul)
+            "https://cdn-icons-png.flaticon.com/512/742/742752.png", # 2
+            "https://cdn-icons-png.flaticon.com/512/742/742871.png", # 3
+            "https://cdn-icons-png.flaticon.com/512/742/742838.png", # 4 - Triste
+            "https://cdn-icons-png.flaticon.com/512/742/742927.png", # 5 - Neutral
+            "https://cdn-icons-png.flaticon.com/512/742/742755.png", # 6
+            "https://cdn-icons-png.flaticon.com/512/742/742787.png", # 7 - Sonrisa leve
+            "https://cdn-icons-png.flaticon.com/512/742/742940.png", # 8
+            "https://cdn-icons-png.flaticon.com/512/742/742751.png", # 9 - Feliz
+            "https://cdn-icons-png.flaticon.com/512/742/742922.png"  # 10 - ¡Radiante! (Verde)
+        ]
 
-        active = "transform: scale(1.3); filter: grayscale(0%); opacity: 1; transition: 0.4s; pointer-events: none;"
-        inactive = "transform: scale(0.9); filter: grayscale(100%); opacity: 0.3; transition: 0.4s; pointer-events: none;"
+        # Generamos el HTML de los 10 iconos
+        iconos_html = ""
+        for i, url in enumerate(iconos_url, 1):
+            # Si el nivel del slider coincide, resaltamos
+            es_activo = (satisfaccion_nivel == i)
+            # Gradiente de color: Azul para bajos, Gris medio, Verde para altos
+            if i <= 3: color = "#007bff"
+            elif i <= 7: color = "#6c757d"
+            else: color = "#28a745"
+            
+            style = "transform: scale(1.4); filter: grayscale(0%); opacity: 1; border-bottom: 3px solid " + color if es_activo else "transform: scale(0.85); filter: grayscale(100%); opacity: 0.2;"
+            
+            iconos_html += f"""
+                <div style="text-align: center; transition: 0.3s; {style} width: 9%;">
+                    <img src="{url}" style="width: 100%; max-width: 30px;">
+                    <p style="font-size: 9px; margin: 0; font-weight: bold;">{i}</p>
+                </div>
+            """
 
-        # Renderizado de iconos
         st.markdown(f"""
-            <div style="display: flex; justify-content: space-around; align-items: center; margin-top: 15px; padding: 15px; background: #ffffff; border-radius: 20px; border: 1px solid #eee; box-shadow: 0px 4px 10px rgba(0,0,0,0.05);">
-                <div style="text-align: center; {active if is_sad else inactive}">
-                    <img src="https://cdn-icons-png.flaticon.com/512/742/742782.png" width="45">
-                    <p style="font-size: 11px; color: #007bff; font-weight: bold; margin: 5px 0 0 0;">Triste</p>
-                </div>
-                <div style="text-align: center; {active if is_neutral else inactive}">
-                    <img src="https://cdn-icons-png.flaticon.com/512/742/742927.png" width="45">
-                    <p style="font-size: 11px; color: #6c757d; font-weight: bold; margin: 5px 0 0 0;">Neutral</p>
-                </div>
-                <div style="text-align: center; {active if is_happy else inactive}">
-                    <img src="https://cdn-icons-png.flaticon.com/512/742/742751.png" width="45">
-                    <p style="font-size: 11px; color: #28a745; font-weight: bold; margin: 5px 0 0 0;">Feliz</p>
-                </div>
+            <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 15px; padding: 15px; background: #ffffff; border-radius: 15px; border: 1px solid #eee;">
+                {iconos_html}
             </div>
         """, unsafe_allow_html=True)
+
+    # 2. BOTÓN DE GUARDADO EN FORM
+    with st.form("formulario_registro"):
+        comentario = st.text_area("Comentario adicional")
+        submit = st.form_submit_button("Confirmar y Guardar Registro")
+        
+        if submit:
+            if descripcion and monto:
+                db = SessionLocal()
+                try:
+                    mov = Movimiento(tipo=tipo, descripcion=descripcion, monto=monto)
+                    db.add(mov)
+                    db.flush()
+                    met = MetricaSatisfaccion(movimiento_id=mov.id, nivel=satisfaccion_nivel, comentario=comentario)
+                    db.add(met)
+                    db.commit()
+                    st.success("¡Guardado correctamente!")
+                    st.balloons()
+                except Exception as e:
+                    db.rollback()
+                    st.error(f"Error: {e}")
+                finally:
+                    db.close()
+            else:
+                st.warning("Faltan datos obligatorios.")
 
     # --- 2. RESTO DEL FORMULARIO ---
     with st.form("formulario_final", clear_on_submit=True):
