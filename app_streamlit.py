@@ -150,31 +150,6 @@ elif opcion == "Registrar Movimiento":
             </div>
         """, unsafe_allow_html=True)
 
-    # 2. BOTÓN DE GUARDADO EN FORM
-    with st.form("formulario_registro"):
-        comentario = st.text_area("Comentario adicional")
-        submit = st.form_submit_button("Confirmar y Guardar Registro")
-        
-        if submit:
-            if descripcion and monto:
-                db = SessionLocal()
-                try:
-                    mov = Movimiento(tipo=tipo, descripcion=descripcion, monto=monto)
-                    db.add(mov)
-                    db.flush()
-                    met = MetricaSatisfaccion(movimiento_id=mov.id, nivel=satisfaccion_nivel, comentario=comentario)
-                    db.add(met)
-                    db.commit()
-                    st.success("¡Guardado correctamente!")
-                    st.balloons()
-                except Exception as e:
-                    db.rollback()
-                    st.error(f"Error: {e}")
-                finally:
-                    db.close()
-            else:
-                st.warning("Faltan datos obligatorios.")
-
     # --- 2. RESTO DEL FORMULARIO ---
     with st.form("formulario_final", clear_on_submit=True):
         comentario = st.text_area("Comentario (¿Cómo te sentiste con este gasto/ingreso?)")
