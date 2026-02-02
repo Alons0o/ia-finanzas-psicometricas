@@ -1,6 +1,6 @@
+import os
 import streamlit as st
 import base64
-import os  # Esta también nos servirá
 from streamlit_option_menu import option_menu
 import matplotlib.pyplot as plt
 from app.db.session import SessionLocal
@@ -8,9 +8,12 @@ from app.ia.analisis_psicometrico import MotorPsicometrico
 from app.models.movimiento import Movimiento
 from app.models.satisfaccion import MetricaSatisfaccion
 def get_base64_image(path):
-    with open(path, "rb") as f:
-        data = f.read()
-    return base64.b64encode(data).decode()
+    # Verificamos si el archivo existe antes de intentar abrirlo
+    if os.path.exists(path):
+        with open(path, "rb") as f:
+            data = f.read()
+        return base64.b64encode(data).decode()
+    return None
 # --- CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="IA Finanzas Psicométricas", page_icon="🧠", layout="wide")
 
@@ -49,24 +52,29 @@ db.close()
 
 # --- NAVEGACIÓN PRINCIPAL ---
 
+# --- NAVEGACIÓN PRINCIPAL ---
+
 if opcion == "Inicio":
     st.title("Dashboard de Inicio")
     st.markdown("### Estado Financiero Actual")
     
+    # Métricas principales
     c1, c2, c3 = st.columns(3)
     c1.metric("📥 Total Ingresos", f"${total_ingresos:,.2f}")
     c2.metric("📤 Total Gastos", f"${total_gastos:,.2f}", delta=f"-${total_gastos:,.2f}", delta_color="inverse")
+    
     color_saldo = "normal" if saldo_final >= 0 else "inverse"
     c3.metric("Dinero Restante", f"${saldo_final:,.2f}", 
                 delta="POSITIVO" if saldo_final >= 0 else "DÉFICIT", 
                 delta_color=color_saldo)
     
     st.divider()
-    st.subheader("Última Actividad (Impacto Proporcional)")
+    st.subheader("📊 Última Actividad (Impacto Proporcional)")
     
     if not movimientos_db:
         st.info("No hay registros aún.")
     else:
+        # Cálculo de barras de progreso visuales
         valor_maximo_global = max([m.monto for m in movimientos_db]) if movimientos_db else 1
         ultimos_movimientos = reversed(movimientos_db[-5:])
         
@@ -101,45 +109,72 @@ elif opcion == "Registrar Movimiento":
         tipo = st.selectbox("Tipo", ["GASTO", "INGRESO"])
 
     with col_emocion:
+        # Control de satisfacción con slider y caritas dinámicas
         satisfaccion_nivel = st.slider("Grado de Satisfacción", 1, 10, 5)
+        
         iconos_html = ""
         for i in range(1, 11):
-            ruta_local = f"assets/caritas/carita {i}.png"
+            # Ruta exacta según tu carpeta: assets/caritas/caritaX.PNG
+            ruta_local = f"assets/caritas/carita{i}.PNG"
             img_b64 = get_base64_image(ruta_local)
             
             es_activo = (satisfaccion_nivel == i)
             color = "#007bff" if i <= 3 else "#6c757d" if i <= 7 else "#28a745"
-            style = f"transform: scale(1.4); filter: grayscale(0%); opacity: 1; border-bottom: 3px solid {color};" if es_activo else "transform: scale(0.85); filter: grayscale(100%); opacity: 0.2;"
+            
+            # Estilo: si está seleccionado se agranda y recupera color, si no, es gris y pequeño
+            style = (f"transform: scale(1.4); filter: grayscale(0%); opacity: 1; "
+                     f"border-bottom: 3px solid {color};") if es_activo else \
+                    "transform: scale(0.85); filter: grayscale(100%); opacity: 0.2;"
             
             if img_b64:
                 src_data = f"data:image/png;base64,{img_b64}"
-                iconos_html += f'<div style="text-align: center; transition: 0.3s; {style} width: 9%;"><img src="{src_data}" style="width: 100%; max-width: 30px;"><p style="font-size: 9px; margin: 0; font-weight: bold;">{i}</p></div>'
+                iconos_html += (
+                    f'<div style="text-align: center; transition: 0.3s; {style} width: 9%;">'
+                    f'<img src="{src_data}" style="width: 100%; max-width: 30px;">'
+                    f'<p style="font-size: 9px; margin: 0; font-weight: bold;">{i}</p></div>'
+                )
             else:
                 iconos_html += f'<div style="width: 9%; text-align:center;">{i}</div>'
 
-        st.markdown(f'<div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 15px; padding: 15px; background: #ffffff; border-radius: 15px; border: 1px solid #eee;">{iconos_html}</div>', unsafe_allow_html=True)
+        # Contenedor visual de caritas
+        st.markdown(
+            f'<div style="display: flex; justify-content: space-between; align-items: flex-end; '
+            f'margin-top: 15px; padding: 15px; background: #ffffff; border-radius: 15px; border: 1px solid #eee;">'
+            f'{iconos_html}</div>', 
+            unsafe_allow_html=True
+        )
 
+    # Formulario para procesar el guardado en base de datos
     with st.form("formulario_final", clear_on_submit=True):
         comentario = st.text_area("Comentario (¿Cómo te sentiste?)")
+        
         if st.form_submit_button("Guardar Registro"):
             if descripcion and monto > 0:
                 db = SessionLocal()
                 try:
+                    # Crear registro del movimiento
                     nuevo_mov = Movimiento(tipo=tipo, descripcion=descripcion, monto=monto)
                     db.add(nuevo_mov)
-                    db.flush()
-                    nueva_metrica = MetricaSatisfaccion(movimiento_id=nuevo_mov.id, nivel=satisfaccion_nivel, comentario=comentario)
+                    db.flush() # Para obtener el ID antes del commit
+                    
+                    # Crear registro de la métrica psicológica vinculada
+                    nueva_metrica = MetricaSatisfaccion(
+                        movimiento_id=nuevo_mov.id, 
+                        nivel=satisfaccion_nivel, 
+                        comentario=comentario
+                    )
                     db.add(nueva_metrica)
                     db.commit()
-                    st.success("✅ ¡Movimiento registrado!")
+                    
+                    st.success("✅ ¡Movimiento registrado exitosamente!")
                     st.balloons()
                 except Exception as e:
                     db.rollback()
-                    st.error(f"Error: {e}")
+                    st.error(f"Error en la base de datos: {e}")
                 finally:
                     db.close()
             else:
-                st.warning("⚠️ Completa descripción y monto.")
+                st.warning("⚠️ Por favor, completa la descripción y asegúrate de que el monto sea mayor a 0.")
 elif opcion == "Visualizaciones":
     st.title("Análisis de Datos")
     db = SessionLocal()
