@@ -61,7 +61,7 @@ if opcion == "Inicio":
     st.divider()
     
     # --- ÚLTIMA ACTIVIDAD (Solo una barra por registro) ---
-    st.subheader("Última Actividad (Impacto Proporcional)")
+    st.subheader("📊 Última Actividad (Impacto Proporcional)")
     
     if not movimientos_db:
         st.info("No hay registros aún.")
@@ -110,6 +110,30 @@ elif opcion == "Registrar Movimiento":
         with col2:
             tipo = st.selectbox("Tipo", ["GASTO", "INGRESO"])
             satisfaccion_nivel = st.slider("Satisfacción Emocional (1-10)", 1, 10, 5)
+            
+            # --- Lógica de Iconos y Colores (Azul para niveles bajos) ---
+            if satisfaccion_nivel <= 3:
+                color_icon = "#007bff" # Azul (Tristeza/Frialdad)
+                icon_path = "https://cdn-icons-png.flaticon.com/512/742/742782.png" # Cara muy triste/llorando
+                label_feeling = "Baja satisfacción"
+            elif satisfaccion_nivel <= 7:
+                color_icon = "#ffc107" # Amarillo/Naranja
+                icon_path = "https://cdn-icons-png.flaticon.com/512/742/742927.png" # Neutral
+                label_feeling = "Neutral / Aceptable"
+            else:
+                color_icon = "#28a745" # Verde (Felicidad)
+                icon_path = "https://cdn-icons-png.flaticon.com/512/742/742751.png" # Cara muy feliz
+                label_feeling = "¡Alta satisfacción!"
+
+            # Renderizado del icono y el texto
+            st.markdown(f"""
+                <div style="text-align: center; margin-top: -10px;">
+                    <img src="{icon_path}" width="45" style="filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.1));">
+                    <p style="color: {color_icon}; font-weight: bold; margin-top: 8px; font-size: 15px;">
+                        {label_feeling}
+                    </p>
+                </div>
+            """, unsafe_allow_html=True)
         
         comentario = st.text_area("Comentario (¿Cómo te sentiste con este gasto/ingreso?)")
         
