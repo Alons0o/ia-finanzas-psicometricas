@@ -99,7 +99,6 @@ if opcion == "Inicio":
 elif opcion == "Registrar Movimiento":
     st.title("Registrar Movimiento")
     
-    # 1. ENTRADA DE DATOS
     col_input, col_emocion = st.columns([1, 1.2])
     
     with col_input:
@@ -110,29 +109,37 @@ elif opcion == "Registrar Movimiento":
     with col_emocion:
         satisfaccion_nivel = st.slider("Grado de Satisfacción", 1, 10, 5)
         
-        iconos_url = [
-            "https://cdn-icons-png.flaticon.com/512/742/742782.png", "https://cdn-icons-png.flaticon.com/512/742/742752.png",
-            "https://cdn-icons-png.flaticon.com/512/742/742871.png", "https://cdn-icons-png.flaticon.com/512/742/742838.png",
-            "https://cdn-icons-png.flaticon.com/512/742/742927.png", "https://cdn-icons-png.flaticon.com/512/742/742755.png",
-            "https://cdn-icons-png.flaticon.com/512/742/742787.png", "https://cdn-icons-png.flaticon.com/512/742/742940.png",
-            "https://cdn-icons-png.flaticon.com/512/742/742751.png", "https://cdn-icons-png.flaticon.com/512/742/742922.png"
+        # Mapeo de IDs de Flaticon que proporcionaste
+        ids_flaticon = [
+            "10393315", # 1 (Usamos el del 0/1)
+            "10851498", # 2
+            "725099",   # 3
+            "742753",   # 4
+            "742774",   # 5
+            "15348764", # 6
+            "520464",   # 7
+            "10851235", # 8
+            "520460",   # 9
+            "10851309"  # 10
         ]
 
         iconos_html = ""
-        for i, url in enumerate(iconos_url, 1):
-            es_activo = (satisfaccion_nivel == i)
-            if i <= 3: color = "#007bff"
-            elif i <= 7: color = "#6c757d"
-            else: color = "#28a745"
+        for i, id_icon in enumerate(ids_flaticon, 1):
+            url = f"https://cdn-icons-png.flaticon.com/512/{id_icon[:3] if len(id_icon) < 6 else id_icon[:4]}/{id_icon}.png"
+            # Nota: La URL de Flaticon a veces requiere ajustes de subcarpeta, 
+            # usaremos la estructura directa más común:
+            url_directa = f"https://cdn-icons-png.flaticon.com/512/{id_icon[0:4] if int(id_icon) > 1000000 else id_icon[0:3]}/{id_icon}.png"
             
-            # Estilos sin identación excesiva para evitar que Streamlit lo trate como código
+            es_activo = (satisfaccion_nivel == i)
+            if i <= 3: color = "#007bff" # Azul
+            elif i <= 7: color = "#6c757d" # Gris
+            else: color = "#28a745" # Verde
+            
             style = f"transform: scale(1.4); filter: grayscale(0%); opacity: 1; border-bottom: 3px solid {color};" if es_activo else "transform: scale(0.85); filter: grayscale(100%); opacity: 0.2;"
             
-            iconos_html += f'<div style="text-align: center; transition: 0.3s; {style} width: 9%;"><img src="{url}" style="width: 100%; max-width: 30px;"><p style="font-size: 9px; margin: 0; font-weight: bold;">{i}</p></div>'
+            iconos_html += f'<div style="text-align: center; transition: 0.3s; {style} width: 9%;"><img src="{url_directa}" style="width: 100%; max-width: 30px;"><p style="font-size: 9px; margin: 0; font-weight: bold;">{i}</p></div>'
 
-        # El contenedor principal pegado al borde izquierdo de la cadena f-string
         html_final = f'<div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 15px; padding: 15px; background: #ffffff; border-radius: 15px; border: 1px solid #eee;">{iconos_html}</div>'
-        
         st.markdown(html_final, unsafe_allow_html=True)
 
     # --- 2. RESTO DEL FORMULARIO ---
