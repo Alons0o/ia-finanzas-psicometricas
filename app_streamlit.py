@@ -135,31 +135,6 @@ elif opcion == "Registrar Movimiento":
         
         st.markdown(html_final, unsafe_allow_html=True)
 
-    # 2. TU FORMULARIO ORIGINAL (Mantenido como pediste)
-    with st.form("formulario_gastos", clear_on_submit=True):
-        comentario = st.text_area("Comentario (¿Cómo te sentiste con este gasto/ingreso?)")
-        boton_guardar = st.form_submit_button("Guardar Registro")
-
-    if boton_guardar:
-        if descripcion and monto and monto > 0:
-            db = SessionLocal()
-            try:
-                nuevo_mov = Movimiento(tipo=tipo, descripcion=descripcion, monto=monto)
-                db.add(nuevo_mov)
-                db.flush()
-                nueva_metrica = MetricaSatisfaccion(movimiento_id=nuevo_mov.id, nivel=satisfaccion_nivel, comentario=comentario)
-                db.add(nueva_metrica)
-                db.commit()
-                st.success("✅ ¡Movimiento registrado con éxito!")
-                st.balloons()
-            except Exception as e:
-                db.rollback()
-                st.error(f"Error al guardar: {e}")
-            finally:
-                db.close()
-        else:
-            st.warning("⚠️ Por favor, completa la descripción y el monto.")
-
     # --- 2. RESTO DEL FORMULARIO ---
     with st.form("formulario_final", clear_on_submit=True):
         comentario = st.text_area("Comentario (¿Cómo te sentiste con este gasto/ingreso?)")
