@@ -111,31 +111,34 @@ elif opcion == "Registrar Movimiento":
             tipo = st.selectbox("Tipo", ["GASTO", "INGRESO"])
             satisfaccion_nivel = st.slider("Satisfacción Emocional (1-10)", 1, 10, 5)
             
-            # --- Lógica de Animación ---
+            # 1. Definimos los estados (esto no se muestra, es lógica)
             is_sad = satisfaccion_nivel <= 3
             is_neutral = 4 <= satisfaccion_nivel <= 7
             is_happy = satisfaccion_nivel >= 8
 
-            active_style = "transform: scale(1.3); filter: grayscale(0%); opacity: 1; transition: 0.4s; z-index: 10;"
-            inactive_style = "transform: scale(0.9); filter: grayscale(90%); opacity: 0.3; transition: 0.4s;"
+            # 2. Definimos los estilos de animación
+            active = "transform: scale(1.3); filter: grayscale(0%); opacity: 1; transition: 0.4s;"
+            inactive = "transform: scale(0.9); filter: grayscale(100%); opacity: 0.3; transition: 0.4s;"
 
-            # IMPORTANTE: Todo esto debe ir dentro de st.markdown con unsafe_allow_html=True
+            # 3. EL TRUCO: Todo el HTML debe ir AQUÍ adentro
             st.markdown(f"""
-                <div style="display: flex; justify-content: space-around; align-items: center; margin-top: 20px; background: #fdfdfd; padding: 15px; border-radius: 20px; border: 1px solid #eee;">
-                    <div style="text-align: center; {active_style if is_sad else inactive_style}">
+                <div style="display: flex; justify-content: space-around; align-items: center; margin-top: 20px; padding: 10px; background: #ffffff; border-radius: 15px;">
+                    
+                    <div style="text-align: center; {active if is_sad else inactive}">
                         <img src="https://cdn-icons-png.flaticon.com/512/742/742782.png" width="40">
-                        <p style="font-size: 11px; color: #007bff; font-weight: bold; margin-top: 5px;">Triste</p>
+                        <p style="font-size: 11px; color: #007bff; font-weight: bold; margin: 0;">Triste</p>
                     </div>
                     
-                    <div style="text-align: center; {active_style if is_neutral else inactive_style}">
+                    <div style="text-align: center; {active if is_neutral else inactive}">
                         <img src="https://cdn-icons-png.flaticon.com/512/742/742927.png" width="40">
-                        <p style="font-size: 11px; color: #6c757d; font-weight: bold; margin-top: 5px;">Neutral</p>
+                        <p style="font-size: 11px; color: #6c757d; font-weight: bold; margin: 0;">Neutral</p>
                     </div>
                     
-                    <div style="text-align: center; {active_style if is_happy else inactive_style}">
+                    <div style="text-align: center; {active if is_happy else inactive}">
                         <img src="https://cdn-icons-png.flaticon.com/512/742/742751.png" width="40">
-                        <p style="font-size: 11px; color: #28a745; font-weight: bold; margin-top: 5px;">Feliz</p>
+                        <p style="font-size: 11px; color: #28a745; font-weight: bold; margin: 0;">Feliz</p>
                     </div>
+
                 </div>
             """, unsafe_allow_html=True)
         
