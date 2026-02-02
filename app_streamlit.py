@@ -7,17 +7,31 @@ from app.db.session import SessionLocal
 from app.ia.analisis_psicometrico import MotorPsicometrico
 from app.models.movimiento import Movimiento
 from app.models.satisfaccion import MetricaSatisfaccion
+# 1. Función de carga ultra-rápida con caché de objeto completo
 @st.cache_data
-def get_base64_image(path):
-    """
-    Carga la imagen una sola vez y la guarda en caché. 
-    Esto reduce el tiempo de respuesta a milisegundos.
-    """
-    if os.path.exists(path):
-        with open(path, "rb") as f:
-            data = f.read()
-        return base64.b64encode(data).decode()
-    return None
+def generar_html_caritas(nivel_seleccionado):
+    iconos_html = ""
+    for i in range(1, 11):
+        ruta_local = f"assets/caritas/carita{i}.PNG"
+        img_b64 = get_base64_image(ruta_local) # Esta función también debe tener @st.cache_data
+        
+        es_activo = (nivel_seleccionado == i)
+        color = "#007bff" if i <= 3 else "#6c757d" if i <= 7 else "#28a745"
+        
+        # Estilo optimizado sin filtros pesados para máxima fluidez
+        style = (f"transform: scale(1.3); opacity: 1; border-bottom: 4px solid {color};") if es_activo else \
+                "transform: scale(0.9); opacity: 0.3; filter: grayscale(100%);"
+        
+        if img_b64:
+            src_data = f"data:image/png;base64,{img_b64}"
+            iconos_html += (
+                f'<div style="text-align: center; width: 9%; {style}">'
+                f'<img src="{src_data}" style="width: 100%; max-width: 32px; height: auto;">'
+                f'<p style="font-size: 10px; margin: 0; font-weight: bold;">{i}</p></div>'
+            )
+        else:
+            iconos_html += f'<div style="width: 9%; text-align:center;">{i}</div>'
+    return iconos_html
 # --- CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="IA Finanzas Psicométricas", page_icon="🧠", layout="wide")
 
@@ -113,7 +127,31 @@ elif opcion == "Registrar Movimiento":
         tipo = st.selectbox("Tipo", ["GASTO", "INGRESO"])
 
     with col_emocion:
-        satisfaccion_nivel = st.slider("Grado de Satisfacción", 1, 10, 5)
+        # 1. El Slider: Usamos una 'key' para estabilizar el componente
+        satisfaccion_nivel = st.slider("Grado de Satisfacción", 1, 10, 5, key="slider_emocion")
+        
+        # 2. Obtener el bloque de caritas: 
+        # Esta función debe estar definida arriba en tu código con @st.cache_data
+        bloque_caritas = generar_html_caritas(satisfaccion_nivel)
+        
+        # 3. Renderizado del contenedor
+        st.markdown(
+            f'''
+            <div style="
+                display: flex; 
+                justify-content: space-between; 
+                align-items: flex-end; 
+                margin-top: 15px; 
+                padding: 15px; 
+                background: #ffffff; 
+                border-radius: 15px; 
+                border: 1px solid #eee;
+            ">
+                {bloque_caritas}
+            </div>
+            ''', 
+            unsafe_allow_html=True
+        )
         
         iconos_html = ""
         # Generamos el HTML. Ahora get_base64_image es instantáneo gracias al caché.
