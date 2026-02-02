@@ -97,9 +97,9 @@ if opcion == "Inicio":
             """, unsafe_allow_html=True)
 
 elif opcion == "Registrar Movimiento":
-    st.title("📝 Registrar Movimiento")
+    st.title("Registrar Movimiento")
     
-    # 1. ENTRADA DE DATOS (Fuera del form para actualización en tiempo real)
+    # 1. ENTRADA DE DATOS
     col_input, col_emocion = st.columns([1, 1.2])
     
     with col_input:
@@ -108,47 +108,57 @@ elif opcion == "Registrar Movimiento":
         tipo = st.selectbox("Tipo", ["GASTO", "INGRESO"])
 
     with col_emocion:
-        # Slider de 1 a 10
         satisfaccion_nivel = st.slider("Grado de Satisfacción", 1, 10, 5)
         
-        # Definición de los 10 iconos (de muy triste azul a muy feliz verde)
         iconos_url = [
-            "https://cdn-icons-png.flaticon.com/512/742/742782.png", # 1 - Muy Triste (Azul)
-            "https://cdn-icons-png.flaticon.com/512/742/742752.png", # 2
-            "https://cdn-icons-png.flaticon.com/512/742/742871.png", # 3
-            "https://cdn-icons-png.flaticon.com/512/742/742838.png", # 4 - Triste
-            "https://cdn-icons-png.flaticon.com/512/742/742927.png", # 5 - Neutral
-            "https://cdn-icons-png.flaticon.com/512/742/742755.png", # 6
-            "https://cdn-icons-png.flaticon.com/512/742/742787.png", # 7 - Sonrisa leve
-            "https://cdn-icons-png.flaticon.com/512/742/742940.png", # 8
-            "https://cdn-icons-png.flaticon.com/512/742/742751.png", # 9 - Feliz
-            "https://cdn-icons-png.flaticon.com/512/742/742922.png"  # 10 - ¡Radiante! (Verde)
+            "https://cdn-icons-png.flaticon.com/512/742/742782.png", "https://cdn-icons-png.flaticon.com/512/742/742752.png",
+            "https://cdn-icons-png.flaticon.com/512/742/742871.png", "https://cdn-icons-png.flaticon.com/512/742/742838.png",
+            "https://cdn-icons-png.flaticon.com/512/742/742927.png", "https://cdn-icons-png.flaticon.com/512/742/742755.png",
+            "https://cdn-icons-png.flaticon.com/512/742/742787.png", "https://cdn-icons-png.flaticon.com/512/742/742940.png",
+            "https://cdn-icons-png.flaticon.com/512/742/742751.png", "https://cdn-icons-png.flaticon.com/512/742/742922.png"
         ]
 
-        # Generamos el HTML de los 10 iconos
         iconos_html = ""
         for i, url in enumerate(iconos_url, 1):
-            # Si el nivel del slider coincide, resaltamos
             es_activo = (satisfaccion_nivel == i)
-            # Gradiente de color: Azul para bajos, Gris medio, Verde para altos
             if i <= 3: color = "#007bff"
             elif i <= 7: color = "#6c757d"
             else: color = "#28a745"
             
-            style = "transform: scale(1.4); filter: grayscale(0%); opacity: 1; border-bottom: 3px solid " + color if es_activo else "transform: scale(0.85); filter: grayscale(100%); opacity: 0.2;"
+            # Estilos sin identación excesiva para evitar que Streamlit lo trate como código
+            style = f"transform: scale(1.4); filter: grayscale(0%); opacity: 1; border-bottom: 3px solid {color};" if es_activo else "transform: scale(0.85); filter: grayscale(100%); opacity: 0.2;"
             
-            iconos_html += f"""
-                <div style="text-align: center; transition: 0.3s; {style} width: 9%;">
-                    <img src="{url}" style="width: 100%; max-width: 30px;">
-                    <p style="font-size: 9px; margin: 0; font-weight: bold;">{i}</p>
-                </div>
-            """
+            iconos_html += f'<div style="text-align: center; transition: 0.3s; {style} width: 9%;"><img src="{url}" style="width: 100%; max-width: 30px;"><p style="font-size: 9px; margin: 0; font-weight: bold;">{i}</p></div>'
 
-        st.markdown(f"""
-            <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 15px; padding: 15px; background: #ffffff; border-radius: 15px; border: 1px solid #eee;">
-                {iconos_html}
-            </div>
-        """, unsafe_allow_html=True)
+        # El contenedor principal pegado al borde izquierdo de la cadena f-string
+        html_final = f'<div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 15px; padding: 15px; background: #ffffff; border-radius: 15px; border: 1px solid #eee;">{iconos_html}</div>'
+        
+        st.markdown(html_final, unsafe_allow_html=True)
+
+    # 2. TU FORMULARIO ORIGINAL (Mantenido como pediste)
+    with st.form("formulario_gastos", clear_on_submit=True):
+        comentario = st.text_area("Comentario (¿Cómo te sentiste con este gasto/ingreso?)")
+        boton_guardar = st.form_submit_button("Guardar Registro")
+
+    if boton_guardar:
+        if descripcion and monto and monto > 0:
+            db = SessionLocal()
+            try:
+                nuevo_mov = Movimiento(tipo=tipo, descripcion=descripcion, monto=monto)
+                db.add(nuevo_mov)
+                db.flush()
+                nueva_metrica = MetricaSatisfaccion(movimiento_id=nuevo_mov.id, nivel=satisfaccion_nivel, comentario=comentario)
+                db.add(nueva_metrica)
+                db.commit()
+                st.success("✅ ¡Movimiento registrado con éxito!")
+                st.balloons()
+            except Exception as e:
+                db.rollback()
+                st.error(f"Error al guardar: {e}")
+            finally:
+                db.close()
+        else:
+            st.warning("⚠️ Por favor, completa la descripción y el monto.")
 
     # --- 2. RESTO DEL FORMULARIO ---
     with st.form("formulario_final", clear_on_submit=True):
