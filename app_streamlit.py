@@ -7,8 +7,12 @@ from app.db.session import SessionLocal
 from app.ia.analisis_psicometrico import MotorPsicometrico
 from app.models.movimiento import Movimiento
 from app.models.satisfaccion import MetricaSatisfaccion
+@st.cache_data
 def get_base64_image(path):
-    # Verificamos si el archivo existe antes de intentar abrirlo
+    """
+    Carga la imagen una sola vez y la guarda en caché. 
+    Esto reduce el tiempo de respuesta a milisegundos.
+    """
     if os.path.exists(path):
         with open(path, "rb") as f:
             data = f.read()
@@ -109,29 +113,28 @@ elif opcion == "Registrar Movimiento":
         tipo = st.selectbox("Tipo", ["GASTO", "INGRESO"])
 
     with col_emocion:
-        # Control de satisfacción con slider y caritas dinámicas
         satisfaccion_nivel = st.slider("Grado de Satisfacción", 1, 10, 5)
         
         iconos_html = ""
+        # Generamos el HTML. Ahora get_base64_image es instantáneo gracias al caché.
         for i in range(1, 11):
-            # Ruta exacta según tu carpeta: assets/caritas/caritaX.PNG
             ruta_local = f"assets/caritas/carita{i}.PNG"
             img_b64 = get_base64_image(ruta_local)
             
             es_activo = (satisfaccion_nivel == i)
+            # Simplificamos sombras y transiciones para mayor fluidez
             color = "#007bff" if i <= 3 else "#6c757d" if i <= 7 else "#28a745"
             
-            # Estilo: si está seleccionado se agranda y recupera color, si no, es gris y pequeño
-            style = (f"transform: scale(1.4); filter: grayscale(0%); opacity: 1; "
-                     f"border-bottom: 3px solid {color};") if es_activo else \
-                    "transform: scale(0.85); filter: grayscale(100%); opacity: 0.2;"
+            style = (f"transform: scale(1.3); filter: brightness(1.1); opacity: 1; "
+                     f"border-bottom: 4px solid {color};") if es_activo else \
+                    "transform: scale(0.9); filter: grayscale(100%); opacity: 0.3;"
             
             if img_b64:
                 src_data = f"data:image/png;base64,{img_b64}"
                 iconos_html += (
-                    f'<div style="text-align: center; transition: 0.3s; {style} width: 9%;">'
-                    f'<img src="{src_data}" style="width: 100%; max-width: 30px;">'
-                    f'<p style="font-size: 9px; margin: 0; font-weight: bold;">{i}</p></div>'
+                    f'<div style="text-align: center; width: 9%; {style}">'
+                    f'<img src="{src_data}" style="width: 100%; max-width: 32px; height: auto;">'
+                    f'<p style="font-size: 10px; margin: 0; font-weight: bold;">{i}</p></div>'
                 )
             else:
                 iconos_html += f'<div style="width: 9%; text-align:center;">{i}</div>'
