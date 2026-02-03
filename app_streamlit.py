@@ -9,12 +9,11 @@ from app.models.movimiento import Movimiento
 from app.models.satisfaccion import MetricaSatisfaccion
 
 # 1. Función de carga ultra-rápida con caché de objeto completo
-@st.cache_data
 def get_base64_image(path):
-    if os.path.exists(path):
-        with open(path, "rb") as f:
-            return base64.b64encode(f.read()).decode()
-    return None
+    with open(path, "rb") as img_file:
+        # El .decode('utf-8') es vital para que sea texto y no bytes
+        return base64.b64encode(img_file.read()).decode('utf-8')
+    
 # --- CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="IA Finanzas Psicométricas", page_icon="🧠", layout="wide")
 
@@ -116,50 +115,52 @@ elif opcion == "Registrar Movimiento":
         if "satisfaccion_select" not in st.session_state:
             st.session_state.satisfaccion_select = 5
 
-        # --- GENERADOR DE LA TIRA VISUAL CORREGIDO ---
+        # 2. El generador de la tira visual:
         iconos_html = ""
         for i in range(1, 11):
-            img_b64 = get_base64_image(f"assets/caritas/carita{i}.PNG")
-    
-    # Resaltado dinámico
-    es_activa = (st.session_state.satisfaccion_select == i)
-    opacidad = "1" if es_activa else "0.2"
-    escala = "scale(1.25)" if es_activa else "scale(0.85)"
-    filtro = "grayscale(0%)" if es_activa else "grayscale(100%)"
-    
-    # Color de borde según el puntaje
-    color_borde = "#007bff" if i <= 3 else "#6c757d" if i <= 7 else "#28a745"
-    borde = f"3px solid {color_borde}" if es_activa else "3px solid transparent"
+            try:
+                img_path = f"assets/caritas/carita{i}.PNG"
+                img_b64 = get_base64_image(img_path)
+            
+                # Resaltado dinámico
+                es_activa = (st.session_state.satisfaccion_select == i)
+                opacidad = "1" if es_activa else "0.2"
+                escala = "scale(1.2) " if es_activa else "scale(0.9)"
+                filtro = "grayscale(0%)" if es_activa else "grayscale(100%)"
+                color_borde = "#007bff" if i <= 3 else "#6c757d" if i <= 7 else "#28a745"
+                borde = f"3px solid {color_borde}" if es_activa else "3px solid transparent"
 
-    # AQUÍ ESTÁ EL CAMBIO CLAVE: Envolver el img_b64 en <img src="...">
-    iconos_html += f'''
-        <div style="flex: 0 0 auto; width: 50px; margin: 5px; text-align: center; transition: all 0.3s ease;">
-            <img src="data:image/png;base64,{img_b64}" 
-                 style="width: 100%; opacity: {opacidad}; filter: {filtro}; 
-                 transform: {escala}; border-bottom: {borde}; padding-bottom: 5px;">
-            <p style="font-size: 10px; margin: 0; font-weight: bold; color: #444;">{i}</p>
-        </div>
-    '''
+                # IMPORTANTE: El src debe estar pegado al data:image
+                iconos_html += f'''
+                    <div style="flex: 0 0 auto; width: 55px; margin: 5px; text-align: center;">
+                        <img src="data:image/png;base64,{img_b64}" 
+                             style="width: 100%; opacity: {opacidad}; filter: {filtro}; 
+                             transform: {escala}; border-bottom: {borde}; transition: all 0.3s;">
+                        <p style="font-size: 12px; font-weight: bold; color: #444; margin: 5px 0 0 0;">{i}</p>
+                    </div>
+                '''
+                
+            except Exception as e:
+                iconos_html += f"<div>Error: {i}</div>"
 
-# Renderizado del contenedor
-    st.markdown(f'''
-    <div style="
-        display: flex; 
-        justify-content: space-between;
-        overflow-x: auto; 
-        padding: 20px; 
-        background: white; 
-        border-radius: 20px; 
-        box-shadow: 0 8px 20px rgba(0,0,0,0.06);
-        margin-bottom: 10px;
-    ">
-        {iconos_html}
-    </div>
-''', unsafe_allow_html=True)
-
+        # 3. El contenedor final:
+        st.markdown(f'''
+            <div style="
+                display: flex; 
+                justify-content: center; 
+                overflow-x: auto; 
+                padding: 15px; 
+                background-color: white; 
+                border-radius: 20px; 
+                box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            ">
+                {iconos_html}
+            </div>
+        ''', unsafe_allow_html=True)
+        
         # --- CONTROL DESLIZANTE ---
         # Este slider controla las caritas de arriba
-    nuevo_nivel = st.select_slider(
+        nuevo_nivel = st.select_slider(
             "Seleccionador",
             options=range(1, 11),
             value=st.session_state.satisfaccion_select,
@@ -167,10 +168,11 @@ elif opcion == "Registrar Movimiento":
             label_visibility="collapsed" # Oculta el texto para que no se vea doble
         )
 
-    if nuevo_nivel != st.session_state.satisfaccion_select:
+        if nuevo_nivel != st.session_state.satisfaccion_select:
             st.session_state.satisfaccion_select = nuevo_nivel
             st.rerun()
-      # --- EL FORMULARIO DEBE ESTAR AQUÍ (FUERA DE LAS COLUMNAS) ---
+    
+    # --- EL FORMULARIO DEBE ESTAR AQUÍ (FUERA DE LAS COLUMNAS) ---
     with st.form("formulario_final", clear_on_submit=True):
         comentario = st.text_area("Comentario (¿Cómo te sentiste?)")
         
@@ -200,7 +202,8 @@ elif opcion == "Registrar Movimiento":
                 finally:
                     db.close()
             else:
-                st.warning("⚠️ Completa descripción y monto.")  
+                st.warning("⚠️ Completa descripción y monto.")
+
 elif opcion == "Visualizaciones":
     st.title("Análisis de Datos")
     db = SessionLocal()
