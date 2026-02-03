@@ -140,20 +140,14 @@ elif opcion == "Registrar Movimiento":
             '''
 
         # Renderizado del contenedor blanco
-        st.markdown(f'''
-            <div style="
-                display: flex; 
-                justify-content: space-between;
-                overflow-x: auto; 
-                padding: 20px; 
-                background: white; 
-                border-radius: 20px; 
-                box-shadow: 0 8px 20px rgba(0,0,0,0.06);
-                margin-bottom: 10px;
-            ">
-                {iconos_html}
+        # NO USES st.write(iconos_html) ni st.text(iconos_html)
+# DEBES USAR ESTO:
+
+            st.markdown(f'''
+            <div style="display: flex; justify-content: center; background: white; padding: 10px; border-radius: 15px;">
+            {iconos_html}
             </div>
-        ''', unsafe_allow_html=True)
+            ''', unsafe_allow_html=True)
 
         # --- CONTROL DESLIZANTE ---
         # Este slider controla las caritas de arriba
