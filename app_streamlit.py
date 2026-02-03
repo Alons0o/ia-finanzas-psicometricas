@@ -166,7 +166,37 @@ elif opcion == "Registrar Movimiento":
                         st.rerun()
 
         st.success(f"Seleccionado: Nivel {st.session_state.satisfaccion_select}")
+      # --- EL FORMULARIO DEBE ESTAR AQUÍ (FUERA DE LAS COLUMNAS) ---
+    with st.form("formulario_final", clear_on_submit=True):
+        comentario = st.text_area("Comentario (¿Cómo te sentiste?)")
         
+        # Botón de envío
+        enviar = st.form_submit_button("Guardar Registro")
+        
+        if enviar:
+            if descripcion and monto > 0:
+                db = SessionLocal()
+                try:
+                    nuevo_mov = Movimiento(tipo=tipo, descripcion=descripcion, monto=monto)
+                    db.add(nuevo_mov)
+                    db.flush()
+                    
+                    nueva_metrica = MetricaSatisfaccion(
+                        movimiento_id=nuevo_mov.id, 
+                        nivel=st.session_state.satisfaccion_select, 
+                        comentario=comentario
+                    )
+                    db.add(nueva_metrica)
+                    db.commit()
+                    st.success("✅ ¡Movimiento registrado!")
+                    st.balloons()
+                except Exception as e:
+                    db.rollback()
+                    st.error(f"Error: {e}")
+                finally:
+                    db.close()
+            else:
+                st.warning("⚠️ Completa descripción y monto.")  
 elif opcion == "Visualizaciones":
     st.title("Análisis de Datos")
     db = SessionLocal()
