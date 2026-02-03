@@ -7,7 +7,7 @@ from app.db.session import SessionLocal
 from app.ia.analisis_psicometrico import MotorPsicometrico
 from app.models.movimiento import Movimiento
 from app.models.satisfaccion import MetricaSatisfaccion
-from st_clickable_images import clickable_images
+
 # 1. Función de carga ultra-rápida con caché de objeto completo
 @st.cache_data
 def get_base64_image(path):
@@ -110,54 +110,61 @@ elif opcion == "Registrar Movimiento":
         tipo = st.selectbox("Tipo", ["GASTO", "INGRESO"])
 
     with col_emocion:
-        st.markdown("### ¿Cómo te sientes?")
+        st.write("### ¿Cómo te sientes con este movimiento?")
         
-        # 1. Inicializar el estado de satisfacción
+        # Inicializar el estado si no existe
         if "satisfaccion_select" not in st.session_state:
             st.session_state.satisfaccion_select = 5
 
-        # 2. Generar la "Tira Blanca" de imágenes
-        iconos_html = ""s
+        # --- GENERADOR DE LA TIRA VISUAL ---
+        iconos_html = ""
         for i in range(1, 11):
             img_b64 = get_base64_image(f"assets/caritas/carita{i}.PNG")
             
-            # Resaltar la seleccionada
+            # Resaltado dinámico
             es_activa = (st.session_state.satisfaccion_select == i)
-            estilo_img = "filter: grayscale(0%); transform: scale(1.2); border-bottom: 3px solid #28a745;" if es_activa else "filter: grayscale(100%); opacity: 0.4;"
-            
+            opacidad = "1" if es_activa else "0.2"
+            escala = "scale(1.25)" if es_activa else "scale(0.85)"
+            filtro = "grayscale(0%)" if es_activa else "grayscale(100%)"
+            # Color azul para insatisfacción (1-3), gris (4-7), verde (8-10)
+            color_borde = "#007bff" if i <= 3 else "#6c757d" if i <= 7 else "#28a745"
+            borde = f"3px solid {color_borde}" if es_activa else "3px solid transparent"
+
             iconos_html += f'''
-                <div style="flex: 0 0 auto; width: 60px; margin: 10px; text-align: center;">
-                    <img src="data:image/png;base64,{img_b64}" style="width: 45px; transition: 0.3s; {estilo_img}">
-                    <p style="font-size: 12px; font-weight: bold; color: #333;">{i}</p>
+                <div style="flex: 0 0 auto; width: 50px; margin: 5px; text-align: center; transition: all 0.3s ease;">
+                    <img src="data:image/png;base64,{img_b64}" 
+                         style="width: 100%; opacity: {opacidad}; filter: {filtro}; 
+                         transform: {escala}; border-bottom: {borde}; padding-bottom: 5px;">
+                    <p style="font-size: 10px; margin: 0; font-weight: bold; color: #444;">{i}</p>
                 </div>
             '''
 
-        # 3. Renderizado de la barra blanca con scroll
+        # Renderizado del contenedor blanco
         st.markdown(f'''
             <div style="
                 display: flex; 
+                justify-content: space-between;
                 overflow-x: auto; 
-                padding: 10px; 
+                padding: 20px; 
                 background: white; 
                 border-radius: 20px; 
-                box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-                margin-bottom: 20px;
-                scrollbar-width: thin;
+                box-shadow: 0 8px 20px rgba(0,0,0,0.06);
+                margin-bottom: 10px;
             ">
                 {iconos_html}
             </div>
         ''', unsafe_allow_html=True)
 
-        # 4. El "Deslizador" sincronizado
-        # Usamos un select_slider que es más limpio y actúa como la barra de control
+        # --- CONTROL DESLIZANTE ---
+        # Este slider controla las caritas de arriba
         nuevo_nivel = st.select_slider(
-            "Desliza para cambiar la emoción:",
+            "Seleccionador",
             options=range(1, 11),
             value=st.session_state.satisfaccion_select,
-            key="slider_sincronizado"
+            key="slider_moderno",
+            label_visibility="collapsed" # Oculta el texto para que no se vea doble
         )
 
-        # Si el usuario mueve la barra, actualizamos la carita iluminada
         if nuevo_nivel != st.session_state.satisfaccion_select:
             st.session_state.satisfaccion_select = nuevo_nivel
             st.rerun()
