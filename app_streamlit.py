@@ -116,51 +116,50 @@ elif opcion == "Registrar Movimiento":
         if "satisfaccion_select" not in st.session_state:
             st.session_state.satisfaccion_select = 5
 
-        # --- GENERADOR DE LA TIRA VISUAL ---
+        # --- GENERADOR DE LA TIRA VISUAL CORREGIDO ---
         iconos_html = ""
         for i in range(1, 11):
             img_b64 = get_base64_image(f"assets/caritas/carita{i}.PNG")
-            
-            # Resaltado dinámico
-            es_activa = (st.session_state.satisfaccion_select == i)
-            opacidad = "1" if es_activa else "0.2"
-            escala = "scale(1.25)" if es_activa else "scale(0.85)"
-            filtro = "grayscale(0%)" if es_activa else "grayscale(100%)"
-            
-            # Color azul para insatisfacción (1-3), gris (4-7), verde (8-10)
-            color_borde = "#007bff" if i <= 3 else "#6c757d" if i <= 7 else "#28a745"
-            borde = f"3px solid {color_borde}" if es_activa else "3px solid transparent"
+    
+    # Resaltado dinámico
+    es_activa = (st.session_state.satisfaccion_select == i)
+    opacidad = "1" if es_activa else "0.2"
+    escala = "scale(1.25)" if es_activa else "scale(0.85)"
+    filtro = "grayscale(0%)" if es_activa else "grayscale(100%)"
+    
+    # Color de borde según el puntaje
+    color_borde = "#007bff" if i <= 3 else "#6c757d" if i <= 7 else "#28a745"
+    borde = f"3px solid {color_borde}" if es_activa else "3px solid transparent"
 
-            # Construimos el bloque de cada carita
-            iconos_html += f'''
-                <div style="flex: 0 0 auto; width: 50px; margin: 5px; text-align: center; transition: all 0.3s ease;">
-                    <img src="data:image/png;base64,{img_b64}" 
-                         style="width: 100%; opacity: {opacidad}; filter: {filtro}; 
-                         transform: {escala}; border-bottom: {borde}; padding-bottom: 5px;">
-                    <p style="font-size: 10px; margin: 0; font-weight: bold; color: #444;">{i}</p>
-                </div>
-            '''
+    # AQUÍ ESTÁ EL CAMBIO CLAVE: Envolver el img_b64 en <img src="...">
+    iconos_html += f'''
+        <div style="flex: 0 0 auto; width: 50px; margin: 5px; text-align: center; transition: all 0.3s ease;">
+            <img src="data:image/png;base64,{img_b64}" 
+                 style="width: 100%; opacity: {opacidad}; filter: {filtro}; 
+                 transform: {escala}; border-bottom: {borde}; padding-bottom: 5px;">
+            <p style="font-size: 10px; margin: 0; font-weight: bold; color: #444;">{i}</p>
+        </div>
+    '''
 
-        # Renderizado del contenedor blanco
-        # Usamos una sola línea de f-string para evitar errores de renderizado de texto
-        st.markdown(f'''
-            <div style="
-                display: flex; 
-                justify-content: space-between;
-                overflow-x: auto; 
-                padding: 20px; 
-                background: white; 
-                border-radius: 20px; 
-                box-shadow: 0 8px 20px rgba(0,0,0,0.06);
-                margin-bottom: 10px;
-            ">
-                {iconos_html}
-            </div>
-        ''', unsafe_allow_html=True)
+# Renderizado del contenedor
+    st.markdown(f'''
+    <div style="
+        display: flex; 
+        justify-content: space-between;
+        overflow-x: auto; 
+        padding: 20px; 
+        background: white; 
+        border-radius: 20px; 
+        box-shadow: 0 8px 20px rgba(0,0,0,0.06);
+        margin-bottom: 10px;
+    ">
+        {iconos_html}
+    </div>
+''', unsafe_allow_html=True)
 
         # --- CONTROL DESLIZANTE ---
         # Este slider controla las caritas de arriba
-        nuevo_nivel = st.select_slider(
+    nuevo_nivel = st.select_slider(
             "Seleccionador",
             options=range(1, 11),
             value=st.session_state.satisfaccion_select,
@@ -168,7 +167,7 @@ elif opcion == "Registrar Movimiento":
             label_visibility="collapsed" # Oculta el texto para que no se vea doble
         )
 
-        if nuevo_nivel != st.session_state.satisfaccion_select:
+    if nuevo_nivel != st.session_state.satisfaccion_select:
             st.session_state.satisfaccion_select = nuevo_nivel
             st.rerun()
       # --- EL FORMULARIO DEBE ESTAR AQUÍ (FUERA DE LAS COLUMNAS) ---
