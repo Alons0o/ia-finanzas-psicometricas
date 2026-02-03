@@ -10,38 +10,10 @@ from app.models.satisfaccion import MetricaSatisfaccion
 # 1. Función de carga ultra-rápida con caché de objeto completo
 @st.cache_data
 def get_base64_image(path):
-    """Carga la imagen y la convierte a base64 una sola vez."""
     if os.path.exists(path):
         with open(path, "rb") as f:
-            data = f.read()
-        return base64.b64encode(data).decode()
+            return base64.b64encode(f.read()).decode()
     return None
-
-@st.cache_data
-def generar_html_caritas(nivel_seleccionado):
-    """Genera el bloque HTML completo usando la función anterior."""
-    iconos_html = ""
-    for i in range(1, 11):
-        ruta_local = f"assets/caritas/carita{i}.PNG"
-        # Aquí es donde fallaba: ahora get_base64_image ya existe arriba
-        img_b64 = get_base64_image(ruta_local) 
-        
-        es_activo = (nivel_seleccionado == i)
-        color = "#007bff" if i <= 3 else "#6c757d" if i <= 7 else "#28a745"
-        
-        style = (f"transform: scale(1.3); opacity: 1; border-bottom: 4px solid {color};") if es_activo else \
-                "transform: scale(0.9); opacity: 0.3; filter: grayscale(100%);"
-        
-        if img_b64:
-            src_data = f"data:image/png;base64,{img_b64}"
-            iconos_html += (
-                f'<div style="text-align: center; width: 9%; {style}">'
-                f'<img src="{src_data}" style="width: 100%; max-width: 32px; height: auto;">'
-                f'<p style="font-size: 10px; margin: 0; font-weight: bold;">{i}</p></div>'
-            )
-        else:
-            iconos_html += f'<div style="width: 9%; text-align:center;">{i}</div>'
-    return iconos_html
 # --- CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="IA Finanzas Psicométricas", page_icon="🧠", layout="wide")
 
@@ -137,46 +109,64 @@ elif opcion == "Registrar Movimiento":
         tipo = st.selectbox("Tipo", ["GASTO", "INGRESO"])
 
     with col_emocion:
-        # 1. El Slider
-        satisfaccion_nivel = st.slider("Grado de Satisfacción", 1, 10, 5, key="slider_emocion")
+        st.markdown("### ¿Qué tal te hace sentir este movimiento?")
         
-        # 2. Llamada a la función optimizada (Asegúrate de tenerla definida arriba con @st.cache_data)
-        bloque_caritas = generar_html_caritas(satisfaccion_nivel)
-        
-        # 3. Renderizado único del contenedor
-        st.markdown(
-            f'<div style="display: flex; justify-content: space-between; align-items: flex-end; '
-            f'margin-top: 15px; padding: 15px; background: #ffffff; border-radius: 15px; border: 1px solid #eee;">'
-            f'{bloque_caritas}</div>', 
-            unsafe_allow_html=True
-        )
+        # 1. Inicializar el estado si no existe
+        if "satisfaccion_select" not in st.session_state:
+            st.session_state.satisfaccion_select = 5
 
-    # El formulario de guardado debe ir debajo, fuera de las columnas
-    with st.form("formulario_final", clear_on_submit=True):
-        comentario = st.text_area("Comentario (¿Cómo te sentiste?)")
-        if st.form_submit_button("Guardar Registro"):
-            if descripcion and monto > 0:
-                db = SessionLocal()
-                try:
-                    nuevo_mov = Movimiento(tipo=tipo, descripcion=descripcion, monto=monto)
-                    db.add(nuevo_mov)
-                    db.flush()
-                    nueva_metrica = MetricaSatisfaccion(
-                        movimiento_id=nuevo_mov.id, 
-                        nivel=satisfaccion_nivel, 
-                        comentario=comentario
-                    )
-                    db.add(nueva_metrica)
-                    db.commit()
-                    st.success("✅ ¡Movimiento registrado!")
-                    st.balloons()
-                except Exception as e:
-                    db.rollback()
-                    st.error(f"Error: {e}")
-                finally:
-                    db.close()
-            else:
-                st.warning("⚠️ Completa descripción y monto.")
+        # 2. Estilo CSS para que los botones sean invisibles y solo se vea la carita
+        st.markdown("""
+            <style>
+            div.stButton > button {
+                border: none;
+                background-color: transparent;
+                padding: 0px;
+                transition: transform 0.2s;
+            }
+            div.stButton > button:hover {
+                transform: scale(1.1);
+                background-color: transparent;
+                border: none;
+            }
+            div.stButton > button:active {
+                background-color: transparent;
+                border: none;
+            }
+            </style>
+        """, unsafe_allow_html=True)
+
+        # 3. Fila de caritas (Sin el st.slider arriba)
+        cols = st.columns(10)
+        for i in range(1, 11):
+            with cols[i-1]:
+                img_b64 = get_base64_image(f"assets/caritas/carita{i}.PNG")
+                
+                es_activa = (st.session_state.satisfaccion_select == i)
+                # Si está activa: color total. Si no: gris y transparente.
+                opacidad = "1" if es_activa else "0.3"
+                filtro = "grayscale(0%)" if es_activa else "grayscale(100%)"
+                borde = "4px solid #28a745" if es_activa else "4px solid transparent"
+
+                if img_b64:
+                    # Dibujamos la carita con Markdown
+                    st.markdown(f'''
+                        <div style="text-align:center; opacity:{opacidad}; filter:{filtro}; border-bottom:{borde}; margin-bottom: -35px;">
+                            <img src="data:image/png;base64,{img_b64}" style="width: 100%; max-width: 40px;">
+                        </div>
+                    ''', unsafe_allow_html=True)
+                    
+                    # El botón invisible encima o debajo para capturar el clic
+                    if st.button(" ", key=f"btn_{i}"):
+                        st.session_state.satisfaccion_select = i
+                        st.rerun()
+                else:
+                    if st.button(f"{i}", key=f"fallback_{i}"):
+                        st.session_state.satisfaccion_select = i
+                        st.rerun()
+
+        st.success(f"Seleccionado: Nivel {st.session_state.satisfaccion_select}")
+        
 elif opcion == "Visualizaciones":
     st.title("Análisis de Datos")
     db = SessionLocal()
@@ -328,17 +318,7 @@ elif opcion == "Gestionar Historial":
                         val_sat = mov_edit.satisfaccion.level if hasattr(mov_edit.satisfaccion, 'level') else mov_edit.satisfaccion.nivel
                         nuevo_nivel = st.slider("Nueva Satisfacción", 1, 10, int(val_sat))
                         
-                        if st.form_submit_button("Guardar Cambios"):
-                            mov_edit.descripcion = nueva_desc
-                            mov_edit.monto = nuevo_monto
-                            if hasattr(mov_edit.satisfaccion, 'level'):
-                                mov_edit.satisfaccion.level = nuevo_nivel
-                            else:
-                                mov_edit.satisfaccion.nivel = nuevo_nivel
-                            
-                            db.commit()
-                            st.success(f"✅ Registro {id_a_editar} actualizado")
-                            st.rerun()
+                        
                 else:
                     st.caption("Introduce un ID válido para ver el formulario de edición.")
 
