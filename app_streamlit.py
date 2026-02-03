@@ -126,10 +126,12 @@ elif opcion == "Registrar Movimiento":
             opacidad = "1" if es_activa else "0.2"
             escala = "scale(1.25)" if es_activa else "scale(0.85)"
             filtro = "grayscale(0%)" if es_activa else "grayscale(100%)"
+            
             # Color azul para insatisfacción (1-3), gris (4-7), verde (8-10)
             color_borde = "#007bff" if i <= 3 else "#6c757d" if i <= 7 else "#28a745"
             borde = f"3px solid {color_borde}" if es_activa else "3px solid transparent"
 
+            # Construimos el bloque de cada carita
             iconos_html += f'''
                 <div style="flex: 0 0 auto; width: 50px; margin: 5px; text-align: center; transition: all 0.3s ease;">
                     <img src="data:image/png;base64,{img_b64}" 
@@ -140,14 +142,21 @@ elif opcion == "Registrar Movimiento":
             '''
 
         # Renderizado del contenedor blanco
-        # NO USES st.write(iconos_html) ni st.text(iconos_html)
-# DEBES USAR ESTO:
-
-            st.markdown(f'''
-            <div style="display: flex; justify-content: center; background: white; padding: 10px; border-radius: 15px;">
-            {iconos_html}
+        # Usamos una sola línea de f-string para evitar errores de renderizado de texto
+        st.markdown(f'''
+            <div style="
+                display: flex; 
+                justify-content: space-between;
+                overflow-x: auto; 
+                padding: 20px; 
+                background: white; 
+                border-radius: 20px; 
+                box-shadow: 0 8px 20px rgba(0,0,0,0.06);
+                margin-bottom: 10px;
+            ">
+                {iconos_html}
             </div>
-            ''', unsafe_allow_html=True)
+        ''', unsafe_allow_html=True)
 
         # --- CONTROL DESLIZANTE ---
         # Este slider controla las caritas de arriba
