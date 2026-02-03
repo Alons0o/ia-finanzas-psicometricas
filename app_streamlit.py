@@ -7,6 +7,7 @@ from app.db.session import SessionLocal
 from app.ia.analisis_psicometrico import MotorPsicometrico
 from app.models.movimiento import Movimiento
 from app.models.satisfaccion import MetricaSatisfaccion
+from st_clickable_images import clickable_images
 # 1. Función de carga ultra-rápida con caché de objeto completo
 @st.cache_data
 def get_base64_image(path):
@@ -109,63 +110,57 @@ elif opcion == "Registrar Movimiento":
         tipo = st.selectbox("Tipo", ["GASTO", "INGRESO"])
 
     with col_emocion:
-        st.markdown("### ¿Qué tal te hace sentir este movimiento?")
+        st.markdown("### ¿Cómo te sientes?")
         
-        # 1. Inicializar el estado si no existe
+        # 1. Inicializar el estado de satisfacción
         if "satisfaccion_select" not in st.session_state:
             st.session_state.satisfaccion_select = 5
 
-        # 2. Estilo CSS para que los botones sean invisibles y solo se vea la carita
-        st.markdown("""
-            <style>
-            div.stButton > button {
-                border: none;
-                background-color: transparent;
-                padding: 0px;
-                transition: transform 0.2s;
-            }
-            div.stButton > button:hover {
-                transform: scale(1.1);
-                background-color: transparent;
-                border: none;
-            }
-            div.stButton > button:active {
-                background-color: transparent;
-                border: none;
-            }
-            </style>
-        """, unsafe_allow_html=True)
-
-        # 3. Fila de caritas (Sin el st.slider arriba)
-        cols = st.columns(10)
+        # 2. Generar la "Tira Blanca" de imágenes
+        iconos_html = ""s
         for i in range(1, 11):
-            with cols[i-1]:
-                img_b64 = get_base64_image(f"assets/caritas/carita{i}.PNG")
-                
-                es_activa = (st.session_state.satisfaccion_select == i)
-                # Si está activa: color total. Si no: gris y transparente.
-                opacidad = "1" if es_activa else "0.3"
-                filtro = "grayscale(0%)" if es_activa else "grayscale(100%)"
-                borde = "4px solid #28a745" if es_activa else "4px solid transparent"
+            img_b64 = get_base64_image(f"assets/caritas/carita{i}.PNG")
+            
+            # Resaltar la seleccionada
+            es_activa = (st.session_state.satisfaccion_select == i)
+            estilo_img = "filter: grayscale(0%); transform: scale(1.2); border-bottom: 3px solid #28a745;" if es_activa else "filter: grayscale(100%); opacity: 0.4;"
+            
+            iconos_html += f'''
+                <div style="flex: 0 0 auto; width: 60px; margin: 10px; text-align: center;">
+                    <img src="data:image/png;base64,{img_b64}" style="width: 45px; transition: 0.3s; {estilo_img}">
+                    <p style="font-size: 12px; font-weight: bold; color: #333;">{i}</p>
+                </div>
+            '''
 
-                if img_b64:
-                    # Dibujamos la carita con Markdown
-                    st.markdown(f'''
-                        <div style="text-align:center; opacity:{opacidad}; filter:{filtro}; border-bottom:{borde}; margin-bottom: -35px;">
-                            <img src="data:image/png;base64,{img_b64}" style="width: 100%; max-width: 40px;">
-                        </div>
-                    ''', unsafe_allow_html=True)
-                    
-                    # El botón invisible encima o debajo para capturar el clic
-                    if st.button(" ", key=f"btn_{i}"):
-                        st.session_state.satisfaccion_select = i
-                        st.rerun()
-                else:
-                    if st.button(f"{i}", key=f"fallback_{i}"):
-                        st.session_state.satisfaccion_select = i
-                        st.rerun()
+        # 3. Renderizado de la barra blanca con scroll
+        st.markdown(f'''
+            <div style="
+                display: flex; 
+                overflow-x: auto; 
+                padding: 10px; 
+                background: white; 
+                border-radius: 20px; 
+                box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+                margin-bottom: 20px;
+                scrollbar-width: thin;
+            ">
+                {iconos_html}
+            </div>
+        ''', unsafe_allow_html=True)
 
-        st.success(f"Seleccionado: Nivel {st.session_state.satisfaccion_select}")
+        # 4. El "Deslizador" sincronizado
+        # Usamos un select_slider que es más limpio y actúa como la barra de control
+        nuevo_nivel = st.select_slider(
+            "Desliza para cambiar la emoción:",
+            options=range(1, 11),
+            value=st.session_state.satisfaccion_select,
+            key="slider_sincronizado"
+        )
+
+        # Si el usuario mueve la barra, actualizamos la carita iluminada
+        if nuevo_nivel != st.session_state.satisfaccion_select:
+            st.session_state.satisfaccion_select = nuevo_nivel
+            st.rerun()
       # --- EL FORMULARIO DEBE ESTAR AQUÍ (FUERA DE LAS COLUMNAS) ---
     with st.form("formulario_final", clear_on_submit=True):
         comentario = st.text_area("Comentario (¿Cómo te sentiste?)")
