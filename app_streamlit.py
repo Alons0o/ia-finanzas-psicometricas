@@ -340,9 +340,11 @@ elif opcion == "Gestionar Historial":
     st.title("Gestión de Historial")
     db = SessionLocal()
     
-    # Inicializar el estado de borrado si no existe
+    # Inicializar estados si no existen
     if "modo_borrado" not in st.session_state:
         st.session_state.modo_borrado = False
+    if "modo_edicion" not in st.session_state:
+        st.session_state.modo_edicion = False
 
     # 1. Obtener datos
     historial = db.query(Movimiento).join(MetricaSatisfaccion).order_by(Movimiento.fecha.desc()).all()
@@ -359,56 +361,104 @@ elif opcion == "Gestionar Historial":
                 "Descripción": h.descripcion,
                 "Monto": h.monto,
                 "Tipo": h.tipo,
-                "Satisfacción": h.satisfaccion.level if hasattr(h.satisfaccion, 'level') else h.satisfaccion.nivel
+                "Satisfacción": h.satisfaccion.nivel if hasattr(h.satisfaccion, 'nivel') else h.satisfaccion.level
             })
         df_historial = pd.DataFrame(datos_lista)
 
-        # 2. Botón para activar el modo eliminación
-        col_tit, col_btn = st.columns([3, 1])
+        # 2. Botonera de control
+        col_tit, col_edit, col_del = st.columns([2, 1, 1])
         with col_tit:
             st.subheader("Registros Actuales")
-        with col_btn:
+        
+        with col_edit:
             if not st.session_state.modo_borrado:
-                if st.button("🗑️ Eliminar Registros"):
-                    st.session_state.modo_borrado = True
-                    st.rerun()
-            else:
-                if st.button("❌ Cancelar"):
-                    st.session_state.modo_borrado = False
+                label_edit = "❌ Cancelar Edición" if st.session_state.modo_edicion else "📝 Editar Datos"
+                if st.button(label_edit, use_container_width=True):
+                    st.session_state.modo_edicion = not st.session_state.modo_edicion
                     st.rerun()
 
-        # 3. Mostrar Tabla (Normal o con Checkboxes)
-        if st.session_state.modo_borrado:
-            df_historial.insert(0, "Seleccionar", False)
+        with col_del:
+            if not st.session_state.modo_edicion:
+                label_del = "❌ Cancelar" if st.session_state.modo_borrado else "🗑️ Eliminar"
+                if st.button(label_del, use_container_width=True):
+                    st.session_state.modo_borrado = not st.session_state.modo_borrado
+                    st.rerun()
+
+        # --- LÓGICA DE EDICIÓN ---
+        if st.session_state.modo_edicion:
+            st.info("💡 Haz doble clic en una celda para modificarla. Al terminar, presiona el botón 'Guardar Cambios'.")
             
-            edicion = st.data_editor(
+            # Configuramos el editor para que ciertas columnas sean editables
+            df_editado = st.data_editor(
                 df_historial,
                 hide_index=True,
                 column_config={
-                    "Seleccionar": st.column_config.CheckboxColumn("Seleccionar", default=False),
-                    "ID": st.column_config.NumberColumn("ID", disabled=True)
+                    "ID": st.column_config.NumberColumn("ID", disabled=True),
+                    "Fecha": st.column_config.TextColumn("Fecha", disabled=True),
+                    "Tipo": st.column_config.SelectboxColumn("Tipo", options=["GASTO", "INGRESO"]),
+                    "Satisfacción": st.column_config.NumberColumn("Satisfacción", min_value=1, max_value=10, step=1),
                 },
                 use_container_width=True,
-                key="editor_borrado_activo"
+                key="editor_global"
             )
 
-            ids_a_eliminar = edicion[edicion["Seleccionar"] == True]["ID"].tolist()
+            # Detectar si hay cambios comparando DataFrames
+            if st.button("💾 Guardar Cambios en Base de Datos", type="primary"):
+                try:
+                    cambios_realizados = False
+                    for index, row in df_editado.iterrows():
+                        original = df_historial.iloc[index]
+                        # Si la fila actual es distinta a la original, actualizamos
+                        if not row.equals(original):
+                            # Actualizar Movimiento
+                            mov = db.query(Movimiento).filter(Movimiento.id == int(row["ID"])).first()
+                            mov.descripcion = row["Descripción"]
+                            mov.monto = float(row["Monto"])
+                            mov.tipo = row["Tipo"]
+                            
+                            # Actualizar Satisfacción
+                            metrica = db.query(MetricaSatisfaccion).filter(MetricaSatisfaccion.movimiento_id == mov.id).first()
+                            metrica.nivel = int(row["Satisfacción"])
+                            
+                            cambios_realizados = True
+                    
+                    if cambios_realizados:
+                        db.commit()
+                        st.success("✅ Cambios guardados correctamente.")
+                        st.session_state.modo_edicion = False
+                        st.rerun()
+                    else:
+                        st.warning("No se detectaron cambios para guardar.")
+                except Exception as e:
+                    db.rollback()
+                    st.error(f"Error al actualizar: {e}")
+
+        # --- LÓGICA DE BORRADO (Tu código original mejorado) ---
+        elif st.session_state.modo_borrado:
+            df_historial.insert(0, "Seleccionar", False)
+            edicion_borrado = st.data_editor(
+                df_historial,
+                hide_index=True,
+                column_config={"Seleccionar": st.column_config.CheckboxColumn("Seleccionar", default=False)},
+                use_container_width=True
+            )
+            ids_a_eliminar = edicion_borrado[edicion_borrado["Seleccionar"] == True]["ID"].tolist()
 
             if ids_a_eliminar:
-                st.error(f"⚠️ Has seleccionado {len(ids_a_eliminar)} registro(s).")
-                if st.button("Confirmar Eliminación Permanente"):
+                if st.button(f"🗑️ Confirmar eliminación de {len(ids_a_eliminar)} registros"):
                     try:
                         db.query(MetricaSatisfaccion).filter(MetricaSatisfaccion.movimiento_id.in_(ids_a_eliminar)).delete(synchronize_session=False)
                         db.query(Movimiento).filter(Movimiento.id.in_(ids_a_eliminar)).delete(synchronize_session=False)
                         db.commit()
-                        st.session_state.modo_borrado = False # Resetear modo
-                        st.success("Registros eliminados correctamente.")
+                        st.session_state.modo_borrado = False
+                        st.success("Registros eliminados.")
                         st.rerun()
                     except Exception as e:
                         db.rollback()
                         st.error(f"Error: {e}")
+        
+        # --- VISTA NORMAL ---
         else:
-            # Vista normal sin cuadritos
             st.dataframe(df_historial, hide_index=True, use_container_width=True)
 
     db.close()
