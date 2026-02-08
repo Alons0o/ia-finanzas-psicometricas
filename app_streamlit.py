@@ -135,66 +135,90 @@ elif opcion == "Registrar Movimiento":
     with col_emocion:
         st.write("### ¿Cómo te sientes con este movimiento?")
         
-        # Inicializar el estado si no existe
+        # 1. Inicializar el estado si no existe
         if "satisfaccion_select" not in st.session_state:
             st.session_state.satisfaccion_select = 5
 
-        # 2. El generador de la tira visual:
+        # 2. Generar el HTML del carrete
         iconos_html = ""
         for i in range(1, 11):
             try:
+                # Importante: Verifica que la ruta sea exacta a tu estructura de carpetas
                 img_path = f"assets/caritas/carita{i}.PNG"
                 img_b64 = get_base64_image(img_path)
             
-                # Resaltado dinámico
+                # Lógica de resaltado
                 es_activa = (st.session_state.satisfaccion_select == i)
-                opacidad = "1" if es_activa else "0.2"
-                escala = "scale(1.2) " if es_activa else "scale(0.9)"
+                
+                # Estilos dinámicos
+                opacidad = "1" if es_activa else "0.3"
+                escala = "scale(1.2)" if es_activa else "scale(0.85)"
                 filtro = "grayscale(0%)" if es_activa else "grayscale(100%)"
-                color_borde = "#007bff" if i <= 3 else "#6c757d" if i <= 7 else "#28a745"
-                borde = f"3px solid {color_borde}" if es_activa else "3px solid transparent"
+                borde = "4px solid #ff4b4b" if es_activa else "4px solid transparent"
 
-                # IMPORTANTE: El src debe estar pegado al data:image
                 iconos_html += f'''
-                    <div style="flex: 0 0 auto; width: 55px; margin: 5px; text-align: center;">
+                    <div style="
+                        flex: 0 0 auto; 
+                        width: 70px; 
+                        margin: 10px; 
+                        text-align: center; 
+                        transition: all 0.4s ease;
+                    ">
                         <img src="data:image/png;base64,{img_b64}" 
-                             style="width: 100%; opacity: {opacidad}; filter: {filtro}; 
-                             transform: {escala}; border-bottom: {borde}; transition: all 0.3s;">
-                        <p style="font-size: 12px; font-weight: bold; color: #444; margin: 5px 0 0 0;">{i}</p>
+                             style="
+                                width: 60px; 
+                                height: 60px; 
+                                object-fit: contain;
+                                opacity: {opacidad}; 
+                                filter: {filtro}; 
+                                transform: {escala}; 
+                                border-radius: 50%;
+                                border-bottom: {borde};
+                                padding: 5px;
+                             ">
+                        <p style="
+                            font-size: 14px; 
+                            font-weight: {'bold' if es_activa else 'normal'}; 
+                            color: {'#ff4b4b' if es_activa else '#666'}; 
+                            margin-top: 5px;
+                        ">{i}</p>
                     </div>
                 '''
-                
             except Exception as e:
-                iconos_html += f"<div>Error: {i}</div>"
+                iconos_html += f"<div style='flex: 0 0 auto; width: 70px;'>⚠️ {i}</div>"
 
-        # 3. El contenedor final:
+        # 3. Renderizar el contenedor tipo "Carrete"
         st.markdown(f'''
             <div style="
                 display: flex; 
-                justify-content: center; 
+                flex-wrap: nowrap; 
                 overflow-x: auto; 
-                padding: 15px; 
-                background-color: white; 
-                border-radius: 20px; 
-                box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+                padding: 10px 5px; 
+                background-color: #f8f9fa; 
+                border-radius: 15px; 
+                box-shadow: inset 0 2px 10px rgba(0,0,0,0.05);
+                scrollbar-width: thin;
+                justify-content: flex-start;
+                align-items: center;
+                margin-bottom: 10px;
             ">
                 {iconos_html}
             </div>
+            <style>
+                /* Estilo para la barra de desplazamiento en Chrome/Safari */
+                ::-webkit-scrollbar {{ height: 6px; }}
+                ::-webkit-scrollbar-thumb {{ background: #ccc; border-radius: 10px; }}
+            </style>
         ''', unsafe_allow_html=True)
         
-        # --- CONTROL DESLIZANTE ---
-        # Este slider controla las caritas de arriba
+        # 4. Control deslizante (Slider) que sincroniza el carrete
         nuevo_nivel = st.select_slider(
-            "Seleccionador",
+            "Desliza para seleccionar tu emoción",
             options=range(1, 11),
             value=st.session_state.satisfaccion_select,
-            key="slider_moderno",
-            label_visibility="collapsed" # Oculta el texto para que no se vea doble
+            key="slider_emociones",
+            label_visibility="collapsed"
         )
-
-        if nuevo_nivel != st.session_state.satisfaccion_select:
-            st.session_state.satisfaccion_select = nuevo_nivel
-            st.rerun()
     
     # --- EL FORMULARIO DEBE ESTAR AQUÍ (FUERA DE LAS COLUMNAS) ---
     with st.form("formulario_final", clear_on_submit=True):
