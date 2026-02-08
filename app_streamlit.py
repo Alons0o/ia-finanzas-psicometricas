@@ -21,6 +21,13 @@ def get_base64_image(image_path):
             return f"data:image/png;base64,{base64.b64encode(img_file.read()).decode()}"
     except Exception:
         return ""
+# Función para convertir tus caritas locales a formato que el navegador entienda
+def get_base64_image(image_path):
+    try:
+        with open(image_path, "rb") as img_file:
+            return f"data:image/png;base64,{base64.b64encode(img_file.read()).decode()}"
+    except Exception:
+        return ""
     
 # Función para dibujar las barras de movimientos (Reutilizable)
 def renderizar_fila_movimiento(m, valor_max):
@@ -140,10 +147,7 @@ elif opcion == "Registrar Movimiento":
         monto = st.number_input("Monto ($)", value=0.0, step=0.01)
         tipo = st.selectbox("Tipo", ["GASTO", "INGRESO"])
         
-        col_form, col_emotion = st.columns([1, 1.2])
-        
-        col_form, col_emotion = st.columns([1, 1.2])
-
+        col_form, col_emotion = st.columns([1, 1.5])
         
     with col_emotion:
     # 1. Cargamos las 10 caritas desde tu carpeta assets/caritas/
