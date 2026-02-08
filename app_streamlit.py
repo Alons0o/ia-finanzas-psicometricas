@@ -14,7 +14,14 @@ def get_base64_image(path):
     with open(path, "rb") as img_file:
         # El .decode('utf-8') es vital para que sea texto y no bytes
         return base64.b64encode(img_file.read()).decode('utf-8')
-
+# --- FUNCIÓN AUXILIAR PARA CARGAR IMÁGENES LOCALES ---
+def get_base64_image(image_path):
+    try:
+        with open(image_path, "rb") as img_file:
+            return f"data:image/png;base64,{base64.b64encode(img_file.read()).decode()}"
+    except Exception:
+        return ""
+    
 # Función para dibujar las barras de movimientos (Reutilizable)
 def renderizar_fila_movimiento(m, valor_max):
     es_ingreso = (m.tipo.upper() == "INGRESO")
@@ -139,102 +146,102 @@ elif opcion == "Registrar Movimiento":
 
         
     with col_emotion:
-    # El HTML modificado: Título arriba, Carrete abajo, Sin barra roja
-        emoji_html = """
+    # 1. Cargamos las 10 caritas desde tu carpeta assets/caritas/
+    # Asegúrate de que los nombres coincidan: carita1.PNG, carita2.PNG, etc.
+        caritas_data = []
+    for i in range(1, 11):
+        path = f"assets/caritas/carita{i}.PNG" # Ajusta la extensión si es .png o .PNG
+        b64_str = get_base64_image(path)
+        caritas_data.append({"val": i, "img": b64_str})
+
+    # 2. Generamos el HTML de los items dinámicamente
+    emoji_items_html = ""
+    for carita in caritas_data:
+        active_class = "active" if carita["val"] == 5 else "" # El 5 marcado por defecto
+        emoji_items_html += f"""
+            <div class="emoji-btn {active_class}" onclick="select(this, {carita['val']})">
+                <img src="{carita['img']}" class="emoji-img">
+                <div class="emoji-num">{carita['val']}</div>
+            </div>
+        """
+
+    # 3. El componente completo
+    emoji_html = f"""
     <style>
-        .container {
-            font-family: sans-serif;
+        .container {{
+            font-family: 'Source Sans Pro', sans-serif;
             display: flex;
             flex-direction: column;
-            align-items: flex-start;
-        }
-        .pregunta {
+        }}
+        .pregunta {{
             font-size: 1.1rem;
-            font-weight: 600;
-            margin-bottom: 15px;
+            font-weight: 700;
+            margin-bottom: 12px;
             color: #31333F;
-        }
-        .carrete {
+        }}
+        .carrete {{
             display: flex;
-            gap: 12px;
-            background-color: #f0f2f6;
+            gap: 8px;
+            background-color: #f8f9fb;
             padding: 15px;
             border-radius: 12px;
-            border: 1px solid #ddd;
-        }
-        .emoji-btn {
+            border: 1px solid #e6e9ef;
+            overflow-x: auto; /* Por si las 10 no caben en pantalla */
+        }}
+        .emoji-btn {{
             cursor: pointer;
             text-align: center;
+            min-width: 50px;
             transition: all 0.2s ease;
-            filter: grayscale(80%);
-            opacity: 0.6;
-        }
-        .emoji-btn:hover {
-            transform: scale(1.15);
+            filter: grayscale(100%);
+            opacity: 0.5;
+        }}
+        .emoji-btn:hover {{
+            transform: scale(1.1);
             filter: grayscale(0%);
             opacity: 1;
-        }
-        .emoji-btn.active {
+        }}
+        .emoji-btn.active {{
             filter: grayscale(0%);
             opacity: 1;
-            border-bottom: 3px solid #FF4B4B; /* Color Streamlit o Naranja */
-            padding-bottom: 2px;
-        }
-        .emoji-img {
-            width: 45px;
-            height: 45px;
-            display: block;
-            margin: 0 auto 5px;
-        }
-        .emoji-num {
+            border-bottom: 3px solid #f39c12;
+            padding-bottom: 5px;
+        }}
+        .emoji-img {{
+            width: 40px;
+            height: 40px;
+            object-fit: contain;
+        }}
+        .emoji-num {{
             font-weight: bold;
-            font-size: 0.8rem;
-        }
+            font-size: 0.75rem;
+            margin-top: 4px;
+            color: #555;
+        }}
     </style>
 
     <div class="container">
         <div class="pregunta">¿Cómo te sientes con este movimiento?</div>
-        
         <div class="carrete">
-            <div class="emoji-btn" onclick="select(this, 1)">
-                <img src="https://cdn-icons-png.flaticon.com/512/1791/1791385.png" class="emoji-img">
-                <div class="emoji-num">1</div>
-            </div>
-            <div class="emoji-btn" onclick="select(this, 2)">
-                <img src="https://cdn-icons-png.flaticon.com/512/1791/1791353.png" class="emoji-img">
-                <div class="emoji-num">2</div>
-            </div>
-            <div class="emoji-btn" onclick="select(this, 3)">
-                <img src="https://cdn-icons-png.flaticon.com/512/1791/1791319.png" class="emoji-img">
-                <div class="emoji-num">3</div>
-            </div>
-            <div class="emoji-btn active" onclick="select(this, 4)">
-                <img src="https://cdn-icons-png.flaticon.com/512/1791/1791231.png" class="emoji-img">
-                <div class="emoji-num">4</div>
-            </div>
-            <div class="emoji-btn" onclick="select(this, 5)">
-                <img src="https://cdn-icons-png.flaticon.com/512/1791/1791236.png" class="emoji-img">
-                <div class="emoji-num">5</div>
-            </div>
+            {emoji_items_html}
         </div>
     </div>
 
     <script>
-        function select(el, val) {
-            // Limpiar activos
+        function select(el, val) {{
             document.querySelectorAll('.emoji-btn').forEach(b => b.classList.remove('active'));
-            // Activar actual
             el.classList.add('active');
             
-            // Enviar a Streamlit
-            window.parent.postMessage({
+            // Enviar valor a Streamlit
+            window.parent.postMessage({{
                 type: 'streamlit:setComponentValue',
                 value: val
-            }, '*');
-        }
+            }}, '*');
+        }}
     </script>
     """
-    # Renderizamos el componente en la columna
+    
+    # Altura un poco mayor para que quepan bien las 10 caritas
     components.html(emoji_html, height=180)
     
     # --- EL FORMULARIO DEBE ESTAR AQUÍ (FUERA DE LAS COLUMNAS) ---
