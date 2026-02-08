@@ -244,7 +244,65 @@ elif opcion == "Registrar Movimiento":
         }}
     </script>
     """
+    caritas_html_list = ""
+    for i in range(1, 11):
+        img_path = f"assets/caritas/carita{i}.PNG"
+        img_base64 = get_base64_image(img_path)
+        
+        # IMPORTANTE: Quitamos la clase 'active' fija para que no fuerce el 4 al recargar
+        caritas_html_list += f"""
+            <div class="emoji-card" id="card-{i}" onclick="selectEmoji({i})">
+                <img src="{img_base64}" class="emoji-img">
+                <div class="emoji-num">{i}</div>
+            </div>
+        """
+
+    emoji_component = f"""
+    <style>
+        .carrete {{ display: flex; flex-wrap: wrap; gap: 10px; background: #f8f9fb; padding: 20px; border-radius: 15px; border: 1px solid #e6e9ef; justify-content: center; }}
+        .emoji-card {{ cursor: pointer; text-align: center; opacity: 0.4; filter: grayscale(100%); min-width: 45px; transition: 0.3s; }}
+        .emoji-card.active {{ opacity: 1; filter: grayscale(0%); border-bottom: 3px solid #f39c12; }}
+        .emoji-img {{ width: 100%; max-width: 40px; height: auto; }}
+        .emoji-num {{ font-weight: bold; font-size: 0.8rem; color: #444; }}
+    </style>
+
+    <div class="main-container">
+        <div style="font-weight: bold; margin-bottom: 15px;">¿Cómo te sientes con este movimiento?</div>
+        <div class="carrete">
+            {caritas_html_list}
+        </div>
+    </div>
+
+    <script>
+        // Esta función es la que realmente envía el dato a Streamlit
+        function sendMessageToStreamlit(value) {{
+            window.parent.postMessage({{
+                isStreamlitMessage: true,
+                type: "streamlit:setComponentValue",
+                value: value
+            }}, "*");
+        }}
+
+        function selectEmoji(val) {{
+            // 1. Limpiar todas las clases active
+            document.querySelectorAll('.emoji-card').forEach(card => card.classList.remove('active'));
+            
+            // 2. Iluminar la seleccionada
+            document.getElementById('card-' + val).classList.add('active');
+            
+            // 3. ENVIAR EL VALOR A PYTHON
+            sendMessageToStreamlit(val);
+        }}
+    </script>
+    """
     
+    # 2. CAPTURAR EL VALOR EN UNA VARIABLE DE PYTHON
+    # La variable 'satisfaccion_seleccionada' guardará el número (1-10)
+    satisfaccion_seleccionada = components.html(emoji_component, height=220)
+
+# --- PRUEBA DE GUARDADO ---
+if st.button("Guardar Registro"):
+    st.success(f"Guardando: Descripción={st.session_state.desc_mov}, Satisfacción={satisfaccion_seleccionada}")
     # Altura un poco mayor para que quepan bien las 10 caritas
     components.html(emoji_html, height=180)
     
