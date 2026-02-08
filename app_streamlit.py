@@ -149,80 +149,79 @@ if opcion == "Inicio":
 elif opcion == "Registrar Movimiento":
     st.title("Registrar Movimiento")
     
-    # 1. El componente de caritas FUERA del formulario para que sea reactivo
-    st.markdown("### 1. ¿Cómo te sientes con este movimiento?")
+    col_input, col_emocion = st.columns([1, 1.5])
     
-    # Generar caritas
-    caritas_html_list = ""
-    val_actual = st.session_state.get('satisfaccion', 10)
-    
-    for i in range(1, 11):
-        img_path = f"assets/caritas/carita{i}.PNG"
-        img_base64 = get_base64_image(img_path)
-        active_class = "active" if i == val_actual else ""
-        
-        caritas_html_list += f"""
-            <div class="emoji-card {active_class}" id="card-{i}" onclick="selectEmoji({i})">
-                <img src="{img_base64}" class="emoji-img">
-                <div class="emoji-num">{i}</div>
-            </div>
+    with col_input:
+        descripcion = st.text_input("Descripción", placeholder="Ej. Sueldo, Alquiler...", key="reg_desc")
+        monto = st.number_input("Monto ($)", value=0.0, step=0.01, key="reg_monto")
+        tipo = st.selectbox("Tipo", ["GASTO", "INGRESO"], key="reg_tipo")
+        comentario = st.text_area("Comentario (Opcional)", key="reg_com")
+
+    with col_emocion:
+        caritas_html_list = ""
+        for i in range(1, 11):
+            img_path = f"assets/caritas/carita{i}.PNG"
+            img_base64 = get_base64_image(img_path)
+            
+            val_actual = st.session_state.get('satisfaccion', 10)
+            active_class = "active" if i == val_actual else ""
+            
+            caritas_html_list += f"""
+                <div class="emoji-card {active_class}" id="card-{i}" onclick="selectEmoji({i})">
+                    <img src="{img_base64}" class="emoji-img">
+                    <div class="emoji-num">{i}</div>
+                </div>
+            """
+
+        emoji_component_html = f"""
+        <style>
+            .carrete {{ display: flex; flex-wrap: wrap; gap: 10px; background: #f8f9fb; padding: 20px; border-radius: 15px; border: 1px solid #e6e9ef; justify-content: center; }}
+            .emoji-card {{ cursor: pointer; text-align: center; opacity: 0.4; filter: grayscale(100%); min-width: 45px; transition: 0.3s; }}
+            .emoji-card:hover {{ transform: scale(1.1); opacity: 0.7; }}
+            .emoji-card.active {{ opacity: 1; filter: grayscale(0%); border-bottom: 3px solid #f39c12; transform: scale(1.1); }}
+            .emoji-img {{ width: 100%; max-width: 40px; height: auto; }}
+            .emoji-num {{ font-weight: bold; font-size: 0.8rem; color: #444; margin-top: 5px; }}
+        </style>
+        <div class="main-container">
+            <div style="font-weight: bold; margin-bottom: 15px; font-family: sans-serif;">¿Cómo te sientes con este movimiento?</div>
+            <div class="carrete">{caritas_html_list}</div>
+        </div>
+        <script>
+            function selectEmoji(val) {{
+                window.parent.postMessage({{
+                    isStreamlitMessage: true,
+                    type: "streamlit:setComponentValue",
+                    value: val
+                }}, "*");
+            }}
+        </script>
         """
-
-    emoji_html = f"""
-    <style>
-        .carrete {{ display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; background: #f0f2f6; padding: 15px; border-radius: 10px; }}
-        .emoji-card {{ cursor: pointer; text-align: center; opacity: 0.4; filter: grayscale(100%); transition: 0.3s; width: 50px; }}
-        .emoji-card:hover {{ opacity: 0.8; transform: scale(1.1); }}
-        .emoji-card.active {{ opacity: 1; filter: grayscale(0%); transform: scale(1.2); border-bottom: 3px solid #ff4b4b; }}
-        .emoji-img {{ width: 100%; height: auto; }}
-        .emoji-num {{ font-size: 0.8rem; font-weight: bold; margin-top: 5px; }}
-    </style>
-    <div class="carrete">{caritas_html_list}</div>
-    <script>
-        function selectEmoji(val) {{
-            window.parent.postMessage({{
-                isStreamlitMessage: true,
-                type: "streamlit:setComponentValue",
-                value: val
-            }}, "*");
-        }}
-    </script>
-    """
-    
-    # Captura de valor (fuera del form para evitar el error de "Missing Submit Button")
-    res = components.html(emoji_html, height=150)
-    
-    if res is not None:
-        try:
-            # Manejamos si res es un dict o un valor directo
-            nuevo_val = res if not isinstance(res, dict) else res.get('value', 10)
-            st.session_state.satisfaccion = int(nuevo_val)
-        except:
-            pass
-
-    st.info(f"Seleccionado actualmente: **Nivel {st.session_state.satisfaccion}**")
-
-    # 2. El resto de los datos en un formulario normal
-    st.markdown("### 2. Detalles del registro")
-    with st.form("datos_movimiento"):
-        col1, col2 = st.columns(2)
-        with col1:
-            descripcion = st.text_input("Descripción", placeholder="Ej. Compra de café")
-            monto = st.number_input("Monto ($)", min_value=0.0, step=0.1)
-        with col2:
-            tipo = st.selectbox("Tipo", ["GASTO", "INGRESO"])
-            comentario = st.text_area("Comentario opcional")
         
-        # El botón de enviar del formulario
-        submit_btn = st.form_submit_button("🚀 Guardar Registro Completo", use_container_width=True)
+        # Renderizar el componente
+        res = components.html(emoji_component_html, height=230)
+        
+        # Lógica de actualización segura (Esto arregla el error de las caritas)
+        if res is not None:
+            try:
+                # Si res es un diccionario (común en nuevas versiones), extraemos 'value'
+                # Si es un valor directo, lo usamos
+                nuevo_valor = res if not isinstance(res, dict) else res.get('value')
+                if nuevo_valor is not None and int(nuevo_valor) != st.session_state.satisfaccion:
+                    st.session_state.satisfaccion = int(nuevo_valor)
+                    st.rerun() # Recargamos para que se vea la carita seleccionada (active)
+            except (ValueError, TypeError):
+                pass 
 
-    if submit_btn:
+    st.divider()
+
+    # --- BOTÓN DE GUARDADO (Ahora siempre visible) ---
+    if st.button("🚀 Guardar Registro", use_container_width=True):
         if descripcion and monto > 0:
             db = SessionLocal()
             try:
-                # Usamos el valor guardado en el session_state por las caritas
-                nivel_final = st.session_state.satisfaccion
-                
+                # Usamos el valor del estado que las caritas ya actualizaron
+                nivel_final = int(st.session_state.satisfaccion)
+
                 nuevo_mov = Movimiento(tipo=tipo, descripcion=descripcion, monto=monto)
                 db.add(nuevo_mov)
                 db.flush() 
@@ -235,15 +234,15 @@ elif opcion == "Registrar Movimiento":
                 db.add(nueva_metrica)
                 db.commit()
                 
-                st.success(f"✅ ¡Guardado con éxito! (Satisfacción: {nivel_final})")
+                st.success(f"✅ ¡Movimiento registrado! Nivel de satisfacción: {nivel_final}")
                 st.balloons()
             except Exception as e:
                 db.rollback()
-                st.error(f"Error en DB: {e}")
+                st.error(f"Error al guardar: {str(e)}")
             finally:
                 db.close()
         else:
-            st.warning("⚠️ Por favor rellena la descripción y el monto.")
+            st.warning("⚠️ Por favor completa la descripción y el monto.")
             
 elif opcion == "Recomendaciones":
     st.title("🤖 Recomendaciones") # Título actualizado
