@@ -147,6 +147,7 @@ elif opcion == "Registrar Movimiento":
         monto = st.number_input("Monto ($)", value=0.0, step=0.01)
         tipo = st.selectbox("Tipo", ["GASTO", "INGRESO"])
         
+        col_form, col_emotion = st.columns([1, 1.5])
         
     with col_emotion:
     # 1. Cargamos las 10 caritas desde tu carpeta assets/caritas/
