@@ -152,36 +152,91 @@ elif opcion == "Registrar Movimiento":
     col_input, col_emocion = st.columns([1, 1.5])
     
     with col_input:
-        descripcion = st.text_input("Descripción", placeholder="Ej. Sueldo, Alquiler, Comida...")
-        monto = st.number_input("Monto ($)", value=0.0, step=0.01)
-        tipo = st.selectbox("Tipo", ["GASTO", "INGRESO"])
-        
-        col_form, col_emotion = st.columns([1, 1.5])
-        
-    with col_form:
-        st.title("Registrar Movimiento")
-    # Es vital que estas 'key' coincidan con las que usas en el st.success
-    desc = st.text_input("Descripción", placeholder="Ej. Sueldo...", key="desc_mov")
-    monto = st.number_input("Monto ($)", min_value=0.0, step=0.01, key="monto_mov")
-    tipo = st.selectbox("Tipo", ["GASTO", "INGRESO"], key="tipo_mov")
-        
-    with col_emotion:
-    # 1. Cargamos las 10 caritas locales y las convertimos a Base64
+        # Usamos nombres de variables claros
+        descripcion = st.text_input("Descripción", placeholder="Ej. Sueldo, Alquiler...", key="reg_desc")
+        monto = st.number_input("Monto ($)", value=0.0, step=0.01, key="reg_monto")
+        tipo = st.selectbox("Tipo", ["GASTO", "INGRESO"], key="reg_tipo")
+        comentario = st.text_area("Comentario (Opcional)", key="reg_com")
+
+    with col_emocion:
+        # 1. Generar el HTML de las 10 caritas
         caritas_html_list = ""
-    for i in range(1, 11):
-        img_path = f"assets/caritas/carita{i}.PNG"
-        img_base64 = get_base64_image(img_path)
-        
-        # Sincronizamos con el estado de la sesión para que la carita se mantenga iluminada
-        # Si no hay nada seleccionado aún, por defecto no hay ninguna activa o puedes poner i == 10
-        active_class = "active" if i == st.session_state.get('satisfaccion', 10) else ""
-        
-        caritas_html_list += f"""
-            <div class="emoji-card {active_class}" id="card-{i}" onclick="selectEmoji({i})">
-                <img src="{img_base64}" class="emoji-img">
-                <div class="emoji-num">{i}</div>
-            </div>
+        for i in range(1, 11):
+            img_path = f"assets/caritas/carita{i}.PNG"
+            img_base64 = get_base64_image(img_path)
+            
+            # Sincronizar clase 'active' con el valor actual en memoria
+            active_class = "active" if i == st.session_state.get('satisfaccion', 10) else ""
+            
+            caritas_html_list += f"""
+                <div class="emoji-card {active_class}" id="card-{i}" onclick="selectEmoji({i})">
+                    <img src="{img_base64}" class="emoji-img">
+                    <div class="emoji-num">{i}</div>
+                </div>
+            """
+
+        emoji_component_html = f"""
+        <style>
+            .carrete {{ display: flex; flex-wrap: wrap; gap: 10px; background: #f8f9fb; padding: 20px; border-radius: 15px; border: 1px solid #e6e9ef; justify-content: center; }}
+            .emoji-card {{ cursor: pointer; text-align: center; opacity: 0.4; filter: grayscale(100%); min-width: 45px; transition: 0.3s; }}
+            .emoji-card.active {{ opacity: 1; filter: grayscale(0%); border-bottom: 3px solid #f39c12; transform: scale(1.1); }}
+            .emoji-img {{ width: 100%; max-width: 40px; height: auto; }}
+            .emoji-num {{ font-weight: bold; font-size: 0.8rem; color: #444; margin-top: 5px; }}
+        </style>
+        <div class="main-container">
+            <div style="font-weight: bold; margin-bottom: 15px; font-family: sans-serif;">¿Cómo te sientes con este movimiento?</div>
+            <div class="carrete">{caritas_html_list}</div>
+        </div>
+        <script>
+            function selectEmoji(val) {{
+                // Feedback visual
+                document.querySelectorAll('.emoji-card').forEach(c => c.classList.remove('active'));
+                document.getElementById('card-' + val).classList.add('active');
+                // Enviar a Streamlit
+                window.parent.postMessage({{
+                    isStreamlitMessage: true,
+                    type: "streamlit:setComponentValue",
+                    value: val
+                }}, "*");
+            }}
+        </script>
         """
+        
+        # 2. Renderizar y capturar el valor
+        valor_capturado = components.html(emoji_component_html, height=230)
+        
+        # 3. Actualizar el estado si el usuario hizo clic
+        if valor_capturado is not None:
+            st.session_state.satisfaccion = valor_capturado
+
+    # --- BOTÓN DE GUARDADO (Fuera de las columnas para que sea ancho completo) ---
+    if st.button("🚀 Guardar Registro", use_container_width=True):
+        if descripcion and monto > 0:
+            db = SessionLocal()
+            try:
+                # Usar st.session_state.satisfaccion que ya tiene el valor del 1 al 10
+                nuevo_mov = Movimiento(tipo=tipo, descripcion=descripcion, monto=monto)
+                db.add(nuevo_mov)
+                db.flush() 
+                
+                nueva_metrica = MetricaSatisfaccion(
+                    movimiento_id=nuevo_mov.id, 
+                    nivel=st.session_state.satisfaccion, 
+                    comentario=comentario
+                )
+                db.add(nueva_metrica)
+                db.commit()
+                
+                st.success(f"✅ ¡Movimiento registrado! Nivel de satisfacción: {st.session_state.satisfaccion}")
+                st.balloons()
+                # st.rerun() # Opcional: para limpiar el formulario tras guardar
+            except Exception as e:
+                db.rollback()
+                st.error(f"Error al guardar: {e}")
+            finally:
+                db.close()
+        else:
+            st.warning("⚠️ Por favor completa la descripción y el monto.")
 
     # 2. Definimos el componente HTML con la lógica de comunicación corregida
     emoji_component = f"""
@@ -271,9 +326,6 @@ elif opcion == "Registrar Movimiento":
     # 2. CAPTURAR EL VALOR EN UNA VARIABLE DE PYTHON
     # La variable 'satisfaccion_seleccionada' guardará el número (1-10)
     satisfaccion_seleccionada = components.html(emoji_component, height=220)
-
-# --- PRUEBA DE GUARDADO ---
-if st.button("Guardar Registro"):
     st.success(f"Guardando: Descripción={st.session_state.desc_mov}, Satisfacción={satisfaccion_seleccionada}")
     # Altura un poco mayor para que quepan bien las 10 caritas
     components.html(emoji_html, height=180)
