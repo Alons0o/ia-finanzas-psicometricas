@@ -158,12 +158,15 @@ elif opcion == "Registrar Movimiento":
         comentario = st.text_area("Comentario (Opcional)", key="reg_com")
 
     with col_emocion:
+        # Extraemos el valor actual del estado para pasárselo al HTML
+        val_actual = st.session_state.get('satisfaccion', 10)
+        
         caritas_html_list = ""
         for i in range(1, 11):
             img_path = f"assets/caritas/carita{i}.PNG"
             img_base64 = get_base64_image(img_path)
             
-            val_actual = st.session_state.get('satisfaccion', 10)
+            # Marcamos como activa la carita que coincida con el estado actual
             active_class = "active" if i == val_actual else ""
             
             caritas_html_list += f"""
@@ -183,11 +186,12 @@ elif opcion == "Registrar Movimiento":
             .emoji-num {{ font-weight: bold; font-size: 0.8rem; color: #444; margin-top: 5px; }}
         </style>
         <div class="main-container">
-            <div style="font-weight: bold; margin-bottom: 15px; font-family: sans-serif;">¿Cómo te sientes con este movimiento?</div>
+            <div style="font-weight: bold; margin-bottom: 15px; font-family: sans-serif;">¿Cómo te sientes con este movimiento? (Seleccionado: {val_actual})</div>
             <div class="carrete">{caritas_html_list}</div>
         </div>
         <script>
             function selectEmoji(val) {{
+                // Enviamos el valor a Streamlit
                 window.parent.postMessage({{
                     isStreamlitMessage: true,
                     type: "streamlit:setComponentValue",
@@ -197,30 +201,30 @@ elif opcion == "Registrar Movimiento":
         </script>
         """
         
-        # Renderizar el componente
+        # El componente devuelve el valor del clic
         res = components.html(emoji_component_html, height=230)
         
-        # Lógica de actualización segura (Esto arregla el error de las caritas)
+        # IMPORTANTE: Solo actualizamos si el valor que viene de las caritas es distinto al que ya tenemos
         if res is not None:
             try:
-                # Si res es un diccionario (común en nuevas versiones), extraemos 'value'
-                # Si es un valor directo, lo usamos
-                nuevo_valor = res if not isinstance(res, dict) else res.get('value')
-                if nuevo_valor is not None and int(nuevo_valor) != st.session_state.satisfaccion:
-                    st.session_state.satisfaccion = int(nuevo_valor)
-                    st.rerun() # Recargamos para que se vea la carita seleccionada (active)
-            except (ValueError, TypeError):
-                pass 
+                # Extraemos el valor del mensaje (puede venir como dict o int)
+                val_clicado = int(res) if not isinstance(res, dict) else int(res.get('value', val_actual))
+                
+                if val_clicado != val_actual:
+                    st.session_state.satisfaccion = val_clicado
+                    st.rerun() # Esto hace que la carita se vea "seleccionada" visualmente
+            except:
+                pass
 
     st.divider()
 
-    # --- BOTÓN DE GUARDADO (Ahora siempre visible) ---
+    # --- BOTÓN DE GUARDADO ---
     if st.button("🚀 Guardar Registro", use_container_width=True):
         if descripcion and monto > 0:
             db = SessionLocal()
             try:
-                # Usamos el valor del estado que las caritas ya actualizaron
-                nivel_final = int(st.session_state.satisfaccion)
+                # Recuperamos el valor final del session_state
+                nivel_final = int(st.session_state.get('satisfaccion', 10))
 
                 nuevo_mov = Movimiento(tipo=tipo, descripcion=descripcion, monto=monto)
                 db.add(nuevo_mov)
@@ -236,6 +240,10 @@ elif opcion == "Registrar Movimiento":
                 
                 st.success(f"✅ ¡Movimiento registrado! Nivel de satisfacción: {nivel_final}")
                 st.balloons()
+                
+                # Opcional: Resetear la satisfacción a 10 para el próximo registro
+                st.session_state.satisfaccion = 10
+                
             except Exception as e:
                 db.rollback()
                 st.error(f"Error al guardar: {str(e)}")
