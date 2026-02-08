@@ -148,33 +148,26 @@ if opcion == "Inicio":
 
 elif opcion == "Registrar Movimiento":
     st.title("Registrar Movimiento")
-
-    # --- 1. PROCESADOR DE SEÑALES (Captura el clic antes de dibujar nada) ---
-    # Esto detecta el clic de la carita ANTES de que el resto del código se ejecute
+    
+    # 1. Aseguramos que el estado exista al inicio
     if 'satisfaccion' not in st.session_state:
         st.session_state.satisfaccion = 10
-
-    # --- 2. DISEÑO DE COLUMNAS (Tu HTML intacto) ---
+        
     col_input, col_emocion = st.columns([1, 1.5])
     
     with col_input:
-        descripcion = st.text_input("Descripción", placeholder="Ej. Sueldo...", key="reg_desc")
+        descripcion = st.text_input("Descripción", placeholder="Ej. Sueldo, Alquiler...", key="reg_desc")
         monto = st.number_input("Monto ($)", value=0.0, step=0.01, key="reg_monto")
         tipo = st.selectbox("Tipo", ["GASTO", "INGRESO"], key="reg_tipo")
         comentario = st.text_area("Comentario (Opcional)", key="reg_com")
 
     with col_emocion:
-        # 1. Aseguramos que el estado exista
-        if 'satisfaccion' not in st.session_state:
-            st.session_state.satisfaccion = 10
-            
         val_actual = st.session_state.satisfaccion
-
+        
         caritas_html_list = ""
         for i in range(1, 11):
             img_path = f"assets/caritas/carita{i}.PNG"
             img_base64 = get_base64_image(img_path)
-            # Solo la carita guardada en el estado actual se ve "activa" al cargar
             active_class = "active" if i == val_actual else ""
             
             caritas_html_list += f"""
@@ -193,16 +186,13 @@ elif opcion == "Registrar Movimiento":
             .emoji-num {{ font-weight: bold; font-size: 0.8rem; color: #444; margin-top: 5px; pointer-events: none; }}
         </style>
         <div class="main-container">
-            <div style="font-weight: bold; margin-bottom: 15px; font-family: sans-serif;">¿Cómo te sientes? (Seleccionado: {val_actual})</div>
+            <div style="font-weight: bold; margin-bottom: 15px; font-family: sans-serif;">¿Cómo te sientes con este movimiento?</div>
             <div class="carrete">{caritas_html_list}</div>
         </div>
         <script>
             function selectEmoji(val) {{
-                // Cambio visual inmediato en el navegador
                 document.querySelectorAll('.emoji-card').forEach(c => c.classList.remove('active'));
                 document.getElementById('card-' + val).classList.add('active');
-                
-                // Enviamos el valor a Streamlit
                 window.parent.postMessage({{
                     isStreamlitMessage: true,
                     type: "streamlit:setComponentValue",
@@ -212,29 +202,28 @@ elif opcion == "Registrar Movimiento":
         </script>
         """
         
-        # Renderizamos el HTML (SIN el argumento key)
+        # El componente captura el valor del click
         res = components.html(emoji_component_html, height=230)
         
-        # 2. Captura de datos: actualizamos el estado solo si el usuario cambió la selección
+        # ACTUALIZACIÓN CRÍTICA: Si el componente devuelve algo, lo guardamos en el acto
         if res is not None:
             try:
-                # El componente devuelve el valor enviado por postMessage
-                v_nuevo = int(res) if not isinstance(res, dict) else int(res.get('value', val_actual))
-                if v_nuevo != st.session_state.satisfaccion:
-                    st.session_state.satisfaccion = v_nuevo
-                    # Forzamos un rerun solo para que el mensaje "Seleccionado: X" se actualice
-                    st.rerun()
+                nuevo_val = int(res) if not isinstance(res, dict) else int(res.get('value', val_actual))
+                if nuevo_val != st.session_state.satisfaccion:
+                    st.session_state.satisfaccion = nuevo_val
+                    st.rerun() # Esto "ancla" el valor 3, 4 o el que sea en el servidor
             except:
                 pass
 
     st.divider()
 
     # --- BOTÓN DE GUARDADO ---
+    # Usamos st.session_state.satisfaccion que ya fue "anclado" por el rerun de arriba
     if st.button("🚀 Guardar Registro", use_container_width=True):
-        # USAMOS EL VALOR DEL SESSION STATE
-        nivel_final = st.session_state.satisfaccion
-        
         if descripcion and monto > 0:
+            # Aquí está la clave: Nivel final ya es el valor que elegiste
+            nivel_a_guardar = st.session_state.satisfaccion
+            
             db = SessionLocal()
             try:
                 nuevo_mov = Movimiento(tipo=tipo, descripcion=descripcion, monto=monto)
@@ -243,22 +232,22 @@ elif opcion == "Registrar Movimiento":
                 
                 nueva_metrica = MetricaSatisfaccion(
                     movimiento_id=nuevo_mov.id, 
-                    nivel=nivel_final, 
+                    nivel=nivel_a_guardar, 
                     comentario=comentario
                 )
                 db.add(nueva_metrica)
                 db.commit()
                 
                 st.balloons()
-                st.success(f"✅ ¡Registro exitoso! Guardado con satisfacción nivel {nivel_final}")
+                st.success(f"✅ ¡Registro exitoso! Guardado con satisfacción nivel {nivel_a_guardar}")
                 
-                # Reiniciamos a 10 para el siguiente gasto
+                # Reiniciamos estado para el siguiente
                 st.session_state.satisfaccion = 10
                 st.rerun()
                 
             except Exception as e:
                 db.rollback()
-                st.error(f"Error: {e}")
+                st.error(f"Error al guardar: {e}")
             finally:
                 db.close()
         else:
