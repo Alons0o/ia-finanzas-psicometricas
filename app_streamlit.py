@@ -164,13 +164,17 @@ elif opcion == "Registrar Movimiento":
         comentario = st.text_area("Comentario (Opcional)", key="reg_com")
 
     with col_emocion:
-        # Usamos el valor que ya está en el estado para iluminar la carita correcta
+        # 1. Definimos el valor inicial solo si no existe
+        if 'satisfaccion' not in st.session_state:
+            st.session_state.satisfaccion = 10
+            
         val_actual = st.session_state.satisfaccion
-        
+
         caritas_html_list = ""
         for i in range(1, 11):
             img_path = f"assets/caritas/carita{i}.PNG"
             img_base64 = get_base64_image(img_path)
+            # El HTML inicial se dibuja con lo que diga el session_state
             active_class = "active" if i == val_actual else ""
             
             caritas_html_list += f"""
@@ -183,18 +187,22 @@ elif opcion == "Registrar Movimiento":
         emoji_component_html = f"""
         <style>
             .carrete {{ display: flex; flex-wrap: wrap; gap: 10px; background: #f8f9fb; padding: 20px; border-radius: 15px; border: 1px solid #e6e9ef; justify-content: center; }}
-            .emoji-card {{ cursor: pointer; text-align: center; opacity: 0.4; filter: grayscale(100%); min-width: 45px; transition: 0.3s; }}
-            .emoji-card:hover {{ transform: scale(1.1); opacity: 0.7; }}
+            .emoji-card {{ cursor: pointer; text-align: center; opacity: 0.4; filter: grayscale(100%); min-width: 45px; transition: 0.1s; }}
             .emoji-card.active {{ opacity: 1 !important; filter: grayscale(0%) !important; border-bottom: 3px solid #f39c12; transform: scale(1.1); }}
             .emoji-img {{ width: 100%; max-width: 40px; height: auto; pointer-events: none; }}
             .emoji-num {{ font-weight: bold; font-size: 0.8rem; color: #444; margin-top: 5px; pointer-events: none; }}
         </style>
         <div class="main-container">
-            <div style="font-weight: bold; margin-bottom: 15px; font-family: sans-serif;">¿Cómo te sientes? (Nivel: {val_actual})</div>
+            <div style="font-weight: bold; margin-bottom: 15px; font-family: sans-serif;">¿Cómo te sientes?</div>
             <div class="carrete">{caritas_html_list}</div>
         </div>
         <script>
             function selectEmoji(val) {{
+                // Cambio visual inmediato e interno del HTML
+                document.querySelectorAll('.emoji-card').forEach(c => c.classList.remove('active'));
+                document.getElementById('card-' + val).classList.add('active');
+                
+                // Enviamos a Streamlit
                 window.parent.postMessage({{
                     isStreamlitMessage: true,
                     type: "streamlit:setComponentValue",
@@ -204,17 +212,17 @@ elif opcion == "Registrar Movimiento":
         </script>
         """
         
-        # Renderizado y captura
-        res = components.html(emoji_component_html, height=230)
+        # Renderizamos. Usamos una KEY fija para que el componente no se destruya al recargar.
+        res = components.html(emoji_component_html, height=230, key="selector_emociones")
         
-        # Sincronización inmediata
+        # 2. CAPTURA DEL VALOR: Actualizamos el estado de fondo
         if res is not None:
-            # Forzamos la extracción del valor sin importar el formato
             try:
-                val_capturado = int(res) if not isinstance(res, dict) else int(res.get('value', val_actual))
-                if val_capturado != st.session_state.satisfaccion:
-                    st.session_state.satisfaccion = val_capturado
-                    st.rerun() # Recarga para que el botón de abajo "vea" el nuevo valor
+                # Si res es dict, extraemos 'value', si no, directo
+                v = res if not isinstance(res, dict) else res.get('value', val_actual)
+                if int(v) != st.session_state.satisfaccion:
+                    st.session_state.satisfaccion = int(v)
+                    # No hacemos rerun aquí para que el usuario pueda seguir haciendo clic libremente
             except:
                 pass
 
