@@ -62,11 +62,11 @@ def renderizar_fila_movimiento(m, valor_max):
 # --- CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="IA Finanzas Psicométricas", page_icon="🧠", layout="wide")
 
-# --- BARRA LATERAL AJUSTADA ---
+# --- BARRA LATERAL AJUSTADA Y RESPONSIVA ---
 with st.sidebar:
     st.markdown("<h2 style='text-align: center;'> Menú</h2>", unsafe_allow_html=True)
     
-    opcion = option_menu(
+    seleccion = option_menu(
         menu_title=None, 
         options=["Inicio", "Registrar Movimiento", "Visualizaciones", "Recomendaciones", "Gestionar Historial"],
         icons=["house", "pencil-square", "bar-chart", "robot", "gear"], 
@@ -74,24 +74,28 @@ with st.sidebar:
         default_index=0,
         styles={
             "container": {
-                "padding": "10px!important", # Añadimos padding general
+                "padding": "10px!important", 
                 "background-color": "#1e1e1e", 
                 "border": "1px solid #333",
-                "min-height": "500px", # <--- ESTO hace que el bloque sea más largo
-                "display": "flex",
-                "flex-direction": "column"
+                "min-height": "100vh",
             },
             "icon": {
                 "color": "#ff4b4b", 
-                "font-size": "20px"
+                "font-size": "clamp(14px, 2vw, 18px)" # Tamaño de icono fluido
             }, 
             "nav-link": {
-                "font-size": "16px", 
+                # clamp(mínimo, preferido, máximo) ajusta el texto según el ancho
+                "font-size": "clamp(12px, 1.5vw, 16px)", 
                 "text-align": "left", 
-                "margin": "10px 8px", # Más separación entre botones
+                "margin": "8px 0px", 
                 "font-weight": "bold",
                 "color": "#ffffff",
-                "--hover-color": "#333333"
+                "--hover-color": "#333333",
+                "white-space": "normal",      # Permite que el texto baje a la siguiente línea
+                "word-break": "break-word",   # Rompe palabras largas si es necesario
+                "line-height": "1.2",         # Ajusta el espacio entre líneas si el texto se dobla
+                "display": "flex",            # Mejora la alineación icono-texto
+                "align-items": "center"
             },
             "nav-link-selected": {
                 "background-color": "#ff4b4b", 
@@ -99,6 +103,7 @@ with st.sidebar:
             },
         }
     )
+    opcion = seleccion if seleccion else "Inicio"
 # --- LÓGICA DE DATOS GLOBAL ---
 db = SessionLocal()
 movimientos_db = db.query(Movimiento).all()
