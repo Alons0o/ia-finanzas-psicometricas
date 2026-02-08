@@ -1,7 +1,16 @@
-from sqlalchemy import Column, Integer, String, DateTime, Float
+from sqlalchemy import Column, Integer, String, DateTime, Float, ForeignKey
 from sqlalchemy.orm import relationship
 from datetime import datetime
-from app.db.session import Base # <--- Importamos el que acabamos de crear
+
+# Intentamos la importación estándar de tu proyecto
+try:
+    from app.db.session import Base
+except ImportError:
+    # Si por alguna razón falla, buscamos una ruta alternativa
+    import sys
+    import os
+    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+    from app.db.session import Base
 
 class Movimiento(Base):
     __tablename__ = "movimientos"
