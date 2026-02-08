@@ -132,62 +132,25 @@ elif opcion == "Registrar Movimiento":
         monto = st.number_input("Monto ($)", value=0.0, step=0.01)
         tipo = st.selectbox("Tipo", ["GASTO", "INGRESO"])
 
-    with col_emocion:
-        st.markdown("### ¿Cómo te sientes con este movimiento?")
+        with col_emocion:
+            st.write("### Prueba de Diagnóstico")
+    try:
+        # Intentamos cargar una sola imagen
+        test_path = "assets/caritas/carita1.PNG"
+        img_b64 = get_base64_image(test_path)
         
-        # 1. Asegurar estado inicial
-        if "satisfaccion_select" not in st.session_state:
-            st.session_state.satisfaccion_select = 5
-
-        # 2. Construir el HTML del carrete
-        iconos_html = ""
-        for i in range(1, 11):
-            try:
-                img_path = f"assets/caritas/carita{i}.PNG"
-                img_b64 = get_base64_image(img_path)
-                
-                # Estilos según selección
-                es_activa = (st.session_state.satisfaccion_select == i)
-                opacidad = "1" if es_activa else "0.2"
-                filtro = "none" if es_activa else "grayscale(100%)"
-                transform = "scale(1.2)" if es_activa else "scale(0.9)"
-                borde = "3px solid #ff4b4b" if es_activa else "none"
-
-                iconos_html += f'''
-                <div style="flex: 0 0 auto; width: 60px; margin: 10px; text-align: center;">
-                    <img src="data:image/png;base64,{img_b64}" 
-                         style="width: 50px; height: 50px; opacity: {opacidad}; filter: {filtro}; 
-                                transform: {transform}; border-bottom: {borde}; transition: 0.3s;">
-                    <div style="font-size: 12px; font-weight: bold; margin-top: 5px;">{i}</div>
-                </div>
-                '''
-            except Exception:
-                iconos_html += f'<div style="flex: 0 0 auto; width: 60px;">[Img {i}]</div>'
-
-        # 3. Renderizado CRÍTICO: Usar un contenedor div para el scroll
-        carrete_html = f'''
-        <div style="display: flex; overflow-x: auto; white-space: nowrap; 
-                    background-color: #ffffff; padding: 10px; border-radius: 15px; 
-                    box-shadow: 0 2px 8px rgba(0,0,0,0.1); border: 1px solid #eee;">
-            {iconos_html}
-        </div>
-        '''
+        # Intentamos mostrarla de dos formas:
+        st.write("1. Intento con st.image:")
+        st.image(f"assets/caritas/carita1.PNG", width=100)
         
-        # IMPORTANTE: st.markdown DEBE tener el parámetro unsafe_allow_html=True
-        st.markdown(carrete_html, unsafe_allow_html=True)
+        st.write("2. Intento con HTML directo:")
+        html_prueba = f'<img src="data:image/png;base64,{img_b64}" width="100">'
+        st.markdown(html_prueba, unsafe_allow_html=True)
         
-        # 4. Control Slider
-        nuevo_nivel = st.select_slider(
-            "Seleccionador Invisible",
-            options=range(1, 11),
-            value=st.session_state.satisfaccion_select,
-            key="slider_final_emociones",
-            label_visibility="collapsed"
-        )
-
-        if nuevo_nivel != st.session_state.satisfaccion_select:
-            st.session_state.satisfaccion_select = nuevo_nivel
-            st.rerun()
+        st.success("Si ves la imagen arriba, la función y el HTML funcionan.")
+    except Exception as e:
+        st.error(f"Error al cargar la imagen: {e}")
+        st.info("Revisa si la ruta 'assets/caritas/carita1.PNG' es exacta (mayúsculas/minúsculas).")
     
     # --- EL FORMULARIO DEBE ESTAR AQUÍ (FUERA DE LAS COLUMNAS) ---
     with st.form("formulario_final", clear_on_submit=True):
