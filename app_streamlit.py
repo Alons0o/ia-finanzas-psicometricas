@@ -152,7 +152,6 @@ elif opcion == "Registrar Movimiento":
     col_input, col_emocion = st.columns([1, 1.5])
     
     with col_input:
-        # Usamos nombres de variables claros
         descripcion = st.text_input("Descripción", placeholder="Ej. Sueldo, Alquiler...", key="reg_desc")
         monto = st.number_input("Monto ($)", value=0.0, step=0.01, key="reg_monto")
         tipo = st.selectbox("Tipo", ["GASTO", "INGRESO"], key="reg_tipo")
@@ -179,6 +178,7 @@ elif opcion == "Registrar Movimiento":
         <style>
             .carrete {{ display: flex; flex-wrap: wrap; gap: 10px; background: #f8f9fb; padding: 20px; border-radius: 15px; border: 1px solid #e6e9ef; justify-content: center; }}
             .emoji-card {{ cursor: pointer; text-align: center; opacity: 0.4; filter: grayscale(100%); min-width: 45px; transition: 0.3s; }}
+            .emoji-card:hover {{ transform: scale(1.1); opacity: 0.7; }}
             .emoji-card.active {{ opacity: 1; filter: grayscale(0%); border-bottom: 3px solid #f39c12; transform: scale(1.1); }}
             .emoji-img {{ width: 100%; max-width: 40px; height: auto; }}
             .emoji-num {{ font-weight: bold; font-size: 0.8rem; color: #444; margin-top: 5px; }}
@@ -189,10 +189,9 @@ elif opcion == "Registrar Movimiento":
         </div>
         <script>
             function selectEmoji(val) {{
-                // Feedback visual
                 document.querySelectorAll('.emoji-card').forEach(c => c.classList.remove('active'));
                 document.getElementById('card-' + val).classList.add('active');
-                // Enviar a Streamlit
+                
                 window.parent.postMessage({{
                     isStreamlitMessage: true,
                     type: "streamlit:setComponentValue",
@@ -202,23 +201,26 @@ elif opcion == "Registrar Movimiento":
         </script>
         """
         
-        # 2. Renderizar y capturar el valor
+        # 2. Renderizar el componente una sola vez
         valor_capturado = components.html(emoji_component_html, height=230)
         
-        # 3. Actualizar el estado si el usuario hizo clic
+        # 3. Sincronizar con session_state
         if valor_capturado is not None:
             st.session_state.satisfaccion = valor_capturado
 
-    # --- BOTÓN DE GUARDADO (Fuera de las columnas para que sea ancho completo) ---
+    st.divider()
+
+    # --- BOTÓN DE GUARDADO ---
     if st.button("🚀 Guardar Registro", use_container_width=True):
         if descripcion and monto > 0:
             db = SessionLocal()
             try:
-                # Usar st.session_state.satisfaccion que ya tiene el valor del 1 al 10
+                # 1. Crear el movimiento
                 nuevo_mov = Movimiento(tipo=tipo, descripcion=descripcion, monto=monto)
                 db.add(nuevo_mov)
                 db.flush() 
                 
+                # 2. Crear la métrica de satisfacción con el valor capturado de session_state
                 nueva_metrica = MetricaSatisfaccion(
                     movimiento_id=nuevo_mov.id, 
                     nivel=st.session_state.satisfaccion, 
@@ -229,7 +231,6 @@ elif opcion == "Registrar Movimiento":
                 
                 st.success(f"✅ ¡Movimiento registrado! Nivel de satisfacción: {st.session_state.satisfaccion}")
                 st.balloons()
-                # st.rerun() # Opcional: para limpiar el formulario tras guardar
             except Exception as e:
                 db.rollback()
                 st.error(f"Error al guardar: {e}")
@@ -237,130 +238,6 @@ elif opcion == "Registrar Movimiento":
                 db.close()
         else:
             st.warning("⚠️ Por favor completa la descripción y el monto.")
-
-    # 2. Definimos el componente HTML con la lógica de comunicación corregida
-    emoji_component = f"""
-    <style>
-        .main-container {{
-            font-family: 'Source Sans Pro', sans-serif;
-            padding: 10px;
-        }}
-        .carrete {{ 
-            display: flex; 
-            flex-wrap: wrap; 
-            gap: 10px; 
-            background: #f8f9fb; 
-            padding: 20px; 
-            border-radius: 15px; 
-            border: 1px solid #e6e9ef; 
-            justify-content: center; 
-        }}
-        .emoji-card {{ 
-            cursor: pointer; 
-            text-align: center; 
-            opacity: 0.4; 
-            filter: grayscale(100%); 
-            min-width: 45px; 
-            transition: all 0.3s ease; 
-        }}
-        .emoji-card:hover {{
-            transform: scale(1.1);
-            opacity: 0.7;
-        }}
-        .emoji-card.active {{ 
-            opacity: 1; 
-            filter: grayscale(0%); 
-            border-bottom: 3px solid #f39c12; 
-            transform: scale(1.1);
-        }}
-        .emoji-img {{ 
-            width: 100%; 
-            max-width: 40px; 
-            height: auto; 
-        }}
-        .emoji-num {{ 
-            font-weight: bold; 
-            font-size: 0.8rem; 
-            color: #444; 
-            margin-top: 5px;
-        }}
-    </style>
-
-    <div class="main-container">
-        <div style="font-weight: bold; margin-bottom: 15px; font-size: 1.1rem; color: #31333F;">
-            ¿Cómo te sientes con este movimiento?
-        </div>
-        <div class="carrete">
-            {caritas_html_list}
-        </div>
-    </div>
-
-    <script>
-        // Función vital para que Streamlit reciba el valor correctamente
-        function sendMessageToStreamlit(value) {{
-            window.parent.postMessage({{
-                isStreamlitMessage: true,
-                type: "streamlit:setComponentValue",
-                value: value
-            }}, "*");
-        }}
-
-        function selectEmoji(val) {{
-            // 1. Feedback visual inmediato: quitar clase a todos y darla al seleccionado
-            document.querySelectorAll('.emoji-card').forEach(card => card.classList.remove('active'));
-            document.getElementById('card-' + val).classList.add('active');
-            
-            // 2. Notificar a Python/Streamlit del cambio
-            sendMessageToStreamlit(val);
-        }}
-    </script>
-    """
-    
-    # 3. Renderizamos el componente y capturamos el valor
-    seleccion = components.html(emoji_component, height=250)
-    
-    # 4. Actualizamos el session_state si el usuario hizo clic
-    if seleccion is not None:
-        st.session_state.satisfaccion = seleccion
-    
-    # 2. CAPTURAR EL VALOR EN UNA VARIABLE DE PYTHON
-    # La variable 'satisfaccion_seleccionada' guardará el número (1-10)
-    satisfaccion_seleccionada = components.html(emoji_component, height=220)
-    st.success(f"Guardando: Descripción={st.session_state.desc_mov}, Satisfacción={satisfaccion_seleccionada}")
-    # Altura un poco mayor para que quepan bien las 10 caritas
-    components.html(emoji_html, height=180)
-    
-    # --- EL FORMULARIO DEBE ESTAR AQUÍ (FUERA DE LAS COLUMNAS) ---
-    with st.form("formulario_final", clear_on_submit=True):
-        comentario = st.text_area("Comentario (¿Cómo te sentiste?)")
-        
-        # Botón de envío
-        enviar = st.form_submit_button("Guardar Registro")
-        
-        if enviar:
-            if descripcion and monto > 0:
-                db = SessionLocal()
-                try:
-                    nuevo_mov = Movimiento(tipo=tipo, descripcion=descripcion, monto=monto)
-                    db.add(nuevo_mov)
-                    db.flush()
-                    
-                    nueva_metrica = MetricaSatisfaccion(
-                        movimiento_id=nuevo_mov.id, 
-                        nivel=st.session_state.satisfaccion_select, 
-                        comentario=comentario
-                    )
-                    db.add(nueva_metrica)
-                    db.commit()
-                    st.success("✅ ¡Movimiento registrado!")
-                    st.balloons()
-                except Exception as e:
-                    db.rollback()
-                    st.error(f"Error: {e}")
-                finally:
-                    db.close()
-            else:
-                st.warning("⚠️ Completa descripción y monto.")
 
 elif opcion == "Visualizaciones":
     st.title("Análisis de Datos")
