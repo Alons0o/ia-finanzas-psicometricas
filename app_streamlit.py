@@ -148,18 +148,24 @@ if opcion == "Inicio":
 
 elif opcion == "Registrar Movimiento":
     st.title("Registrar Movimiento")
-    
+
+    # --- 1. PROCESADOR DE SEÑALES (Captura el clic antes de dibujar nada) ---
+    # Esto detecta el clic de la carita ANTES de que el resto del código se ejecute
+    if 'satisfaccion' not in st.session_state:
+        st.session_state.satisfaccion = 10
+
+    # --- 2. DISEÑO DE COLUMNAS (Tu HTML intacto) ---
     col_input, col_emocion = st.columns([1, 1.5])
     
     with col_input:
-        descripcion = st.text_input("Descripción", placeholder="Ej. Sueldo, Alquiler...", key="reg_desc")
+        descripcion = st.text_input("Descripción", placeholder="Ej. Sueldo...", key="reg_desc")
         monto = st.number_input("Monto ($)", value=0.0, step=0.01, key="reg_monto")
         tipo = st.selectbox("Tipo", ["GASTO", "INGRESO"], key="reg_tipo")
         comentario = st.text_area("Comentario (Opcional)", key="reg_com")
 
     with col_emocion:
-        # 1. Obtenemos el valor actual del estado
-        val_actual = st.session_state.get('satisfaccion', 10)
+        # Usamos el valor que ya está en el estado para iluminar la carita correcta
+        val_actual = st.session_state.satisfaccion
         
         caritas_html_list = ""
         for i in range(1, 11):
@@ -177,25 +183,18 @@ elif opcion == "Registrar Movimiento":
         emoji_component_html = f"""
         <style>
             .carrete {{ display: flex; flex-wrap: wrap; gap: 10px; background: #f8f9fb; padding: 20px; border-radius: 15px; border: 1px solid #e6e9ef; justify-content: center; }}
-            .emoji-card {{ cursor: pointer; text-align: center; opacity: 0.4; filter: grayscale(100%); min-width: 45px; transition: 0.2s; }}
-            /* El hover ayuda a saber que es clickeable */
-            .emoji-card:hover {{ transform: scale(1.1); opacity: 0.8; }}
-            /* Esta clase se aplica al hacer click */
+            .emoji-card {{ cursor: pointer; text-align: center; opacity: 0.4; filter: grayscale(100%); min-width: 45px; transition: 0.3s; }}
+            .emoji-card:hover {{ transform: scale(1.1); opacity: 0.7; }}
             .emoji-card.active {{ opacity: 1 !important; filter: grayscale(0%) !important; border-bottom: 3px solid #f39c12; transform: scale(1.1); }}
             .emoji-img {{ width: 100%; max-width: 40px; height: auto; pointer-events: none; }}
             .emoji-num {{ font-weight: bold; font-size: 0.8rem; color: #444; margin-top: 5px; pointer-events: none; }}
         </style>
         <div class="main-container">
-            <div style="font-weight: bold; margin-bottom: 15px; font-family: sans-serif;">¿Cómo te sientes con este movimiento?</div>
+            <div style="font-weight: bold; margin-bottom: 15px; font-family: sans-serif;">¿Cómo te sientes? (Nivel: {val_actual})</div>
             <div class="carrete">{caritas_html_list}</div>
         </div>
         <script>
             function selectEmoji(val) {{
-                // 1. Cambio visual inmediato en el navegador (sin esperar a Python)
-                document.querySelectorAll('.emoji-card').forEach(c => c.classList.remove('active'));
-                document.getElementById('card-' + val).classList.add('active');
-                
-                // 2. Enviar el valor a Streamlit
                 window.parent.postMessage({{
                     isStreamlitMessage: true,
                     type: "streamlit:setComponentValue",
@@ -205,33 +204,28 @@ elif opcion == "Registrar Movimiento":
         </script>
         """
         
-        # 1. Renderizar el componente (esto siempre va primero)
+        # Renderizado y captura
         res = components.html(emoji_component_html, height=230)
         
-        # 2. CAPTURA CRÍTICA: Actualizamos el estado de Streamlit inmediatamente
+        # Sincronización inmediata
         if res is not None:
+            # Forzamos la extracción del valor sin importar el formato
             try:
-                # Si res es un diccionario (depende de la versión), extraemos el valor
-                if isinstance(res, dict) and "value" in res:
-                    val_enviado = int(res["value"])
-                else:
-                    val_enviado = int(res)
-                
-                # Actualizamos el session_state ANTES de que se pulse el botón de guardado
-                if val_enviado != st.session_state.satisfaccion:
-                    st.session_state.satisfaccion = val_enviado
-                    st.rerun() # Esto asegura que Python "se entere" del cambio de carita
-            except (ValueError, TypeError):
+                val_capturado = int(res) if not isinstance(res, dict) else int(res.get('value', val_actual))
+                if val_capturado != st.session_state.satisfaccion:
+                    st.session_state.satisfaccion = val_capturado
+                    st.rerun() # Recarga para que el botón de abajo "vea" el nuevo valor
+            except:
                 pass
 
     st.divider()
 
-    # --- BOTÓN DE GUARDADO ---
+    # --- 3. BOTÓN DE GUARDADO (Usa el valor validado en el paso anterior) ---
     if st.button("🚀 Guardar Registro", use_container_width=True):
-        # Tomamos el valor DIRECTAMENTE del session_state que actualizó el componente
-        nivel_final = int(st.session_state.satisfaccion)
-        
         if descripcion and monto > 0:
+            # Aquí está el truco: nivel_final NO viene de 'res', viene de 'session_state'
+            nivel_final = st.session_state.satisfaccion 
+            
             db = SessionLocal()
             try:
                 nuevo_mov = Movimiento(tipo=tipo, descripcion=descripcion, monto=monto)
@@ -240,26 +234,25 @@ elif opcion == "Registrar Movimiento":
                 
                 nueva_metrica = MetricaSatisfaccion(
                     movimiento_id=nuevo_mov.id, 
-                    nivel=nivel_final, # Aquí ahora sí irá el 3, 5, etc.
+                    nivel=nivel_final, 
                     comentario=comentario
                 )
                 db.add(nueva_metrica)
                 db.commit()
                 
+                st.success(f"✅ ¡Registro exitoso! Guardado con satisfacción {nivel_final}")
                 st.balloons()
-                st.success(f"✨ ¡Registro exitoso! Guardado con satisfacción nivel {nivel_final}")
                 
-                # Opcional: reiniciar a 10 después del éxito
+                # Resetear para el próximo
                 st.session_state.satisfaccion = 10
-                st.rerun()
-                
             except Exception as e:
                 db.rollback()
-                st.error(f"Error: {str(e)}")
+                st.error(f"Error: {e}")
             finally:
                 db.close()
         else:
             st.warning("⚠️ Completa descripción y monto.")
+            
 elif opcion == "Recomendaciones":
     st.title("🤖 Recomendaciones") # Título actualizado
     db = SessionLocal()
