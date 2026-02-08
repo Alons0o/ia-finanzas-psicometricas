@@ -158,11 +158,14 @@ elif opcion == "Registrar Movimiento":
         comentario = st.text_area("Comentario (Opcional)", key="reg_com")
 
     with col_emocion:
-        # 1. Generar el HTML de las 10 caritas (Se mantiene igual)
+        # 1. Generar el HTML de las 10 caritas
         caritas_html_list = ""
         for i in range(1, 11):
             img_path = f"assets/caritas/carita{i}.PNG"
             img_base64 = get_base64_image(img_path)
+            
+            # Sincronizar visualmente con el session_state
+            # Si no hay valor, usamos 10 por defecto
             val_actual = st.session_state.get('satisfaccion', 10)
             active_class = "active" if i == val_actual else ""
             
@@ -173,18 +176,39 @@ elif opcion == "Registrar Movimiento":
                 </div>
             """
 
-        # ... (Tu variable emoji_component_html se mantiene igual) ...
-
-        # 2. Renderizar y capturar
+        emoji_component_html = f"""
+        <style>
+            .carrete {{ display: flex; flex-wrap: wrap; gap: 10px; background: #f8f9fb; padding: 20px; border-radius: 15px; border: 1px solid #e6e9ef; justify-content: center; }}
+            .emoji-card {{ cursor: pointer; text-align: center; opacity: 0.4; filter: grayscale(100%); min-width: 45px; transition: 0.3s; }}
+            .emoji-card:hover {{ transform: scale(1.1); opacity: 0.7; }}
+            .emoji-card.active {{ opacity: 1; filter: grayscale(0%); border-bottom: 3px solid #f39c12; transform: scale(1.1); }}
+            .emoji-img {{ width: 100%; max-width: 40px; height: auto; }}
+            .emoji-num {{ font-weight: bold; font-size: 0.8rem; color: #444; margin-top: 5px; }}
+        </style>
+        <div class="main-container">
+            <div style="font-weight: bold; margin-bottom: 15px; font-family: sans-serif;">¿Cómo te sientes con este movimiento?</div>
+            <div class="carrete">{caritas_html_list}</div>
+        </div>
+        <script>
+            function selectEmoji(val) {{
+                document.querySelectorAll('.emoji-card').forEach(c => c.classList.remove('active'));
+                document.getElementById('card-' + val).classList.add('active');
+                window.parent.postMessage({{
+                    isStreamlitMessage: true,
+                    type: "streamlit:setComponentValue",
+                    value: val
+                }}, "*");
+            }}
+        </script>
+        """
+        
+        # 2. Renderizar y capturar. 
+        # IMPORTANTE: No uses 'valor_capturado' directamente en el éxito/DB.
         res = components.html(emoji_component_html, height=230)
         
-        # 3. ACTUALIZACIÓN SEGURA: Validamos que res no sea None antes de int()
+        # Si 'res' trae un número, actualizamos el estado
         if res is not None:
-            try:
-                st.session_state.satisfaccion = int(res)
-            except (ValueError, TypeError):
-                # En caso de que llegue algo que no sea un número, mantenemos el valor actual
-                pass
+            st.session_state.satisfaccion = int(res)
 
     st.divider()
 
@@ -193,7 +217,7 @@ elif opcion == "Registrar Movimiento":
         if descripcion and monto > 0:
             db = SessionLocal()
             try:
-                # Aseguramos que siempre haya un número para la DB
+                # Extraemos el valor del estado para asegurar que sea un INT y no un objeto
                 nivel_final = int(st.session_state.get('satisfaccion', 10))
 
                 nuevo_mov = Movimiento(tipo=tipo, descripcion=descripcion, monto=monto)
@@ -208,15 +232,12 @@ elif opcion == "Registrar Movimiento":
                 db.add(nueva_metrica)
                 db.commit()
                 
-                st.success(f"✅ ¡Movimiento registrado! (Satisfacción: {nivel_final})")
+                st.success(f"✅ ¡Movimiento registrado! Nivel de satisfacción: {nivel_final}")
                 st.balloons()
-                
-                # Opcional: Limpiar descripción y monto para el siguiente registro
-                # st.rerun() 
-                
             except Exception as e:
                 db.rollback()
-                st.error(f"Error al guardar en base de datos: {str(e)}")
+                # Aquí es donde antes fallaba porque intentaba imprimir el objeto HTML en el mensaje de error
+                st.error(f"Error al guardar: {str(e)}")
             finally:
                 db.close()
         else:
