@@ -158,15 +158,13 @@ elif opcion == "Registrar Movimiento":
         comentario = st.text_area("Comentario (Opcional)", key="reg_com")
 
     with col_emocion:
-        # Extraemos el valor actual del estado para pasárselo al HTML
+        # 1. Obtenemos el valor actual del estado
         val_actual = st.session_state.get('satisfaccion', 10)
         
         caritas_html_list = ""
         for i in range(1, 11):
             img_path = f"assets/caritas/carita{i}.PNG"
             img_base64 = get_base64_image(img_path)
-            
-            # Marcamos como activa la carita que coincida con el estado actual
             active_class = "active" if i == val_actual else ""
             
             caritas_html_list += f"""
@@ -179,19 +177,25 @@ elif opcion == "Registrar Movimiento":
         emoji_component_html = f"""
         <style>
             .carrete {{ display: flex; flex-wrap: wrap; gap: 10px; background: #f8f9fb; padding: 20px; border-radius: 15px; border: 1px solid #e6e9ef; justify-content: center; }}
-            .emoji-card {{ cursor: pointer; text-align: center; opacity: 0.4; filter: grayscale(100%); min-width: 45px; transition: 0.3s; }}
-            .emoji-card:hover {{ transform: scale(1.1); opacity: 0.7; }}
-            .emoji-card.active {{ opacity: 1; filter: grayscale(0%); border-bottom: 3px solid #f39c12; transform: scale(1.1); }}
-            .emoji-img {{ width: 100%; max-width: 40px; height: auto; }}
-            .emoji-num {{ font-weight: bold; font-size: 0.8rem; color: #444; margin-top: 5px; }}
+            .emoji-card {{ cursor: pointer; text-align: center; opacity: 0.4; filter: grayscale(100%); min-width: 45px; transition: 0.2s; }}
+            /* El hover ayuda a saber que es clickeable */
+            .emoji-card:hover {{ transform: scale(1.1); opacity: 0.8; }}
+            /* Esta clase se aplica al hacer click */
+            .emoji-card.active {{ opacity: 1 !important; filter: grayscale(0%) !important; border-bottom: 3px solid #f39c12; transform: scale(1.1); }}
+            .emoji-img {{ width: 100%; max-width: 40px; height: auto; pointer-events: none; }}
+            .emoji-num {{ font-weight: bold; font-size: 0.8rem; color: #444; margin-top: 5px; pointer-events: none; }}
         </style>
         <div class="main-container">
-            <div style="font-weight: bold; margin-bottom: 15px; font-family: sans-serif;">¿Cómo te sientes con este movimiento? (Seleccionado: {val_actual})</div>
+            <div style="font-weight: bold; margin-bottom: 15px; font-family: sans-serif;">¿Cómo te sientes con este movimiento?</div>
             <div class="carrete">{caritas_html_list}</div>
         </div>
         <script>
             function selectEmoji(val) {{
-                // Enviamos el valor a Streamlit
+                // 1. Cambio visual inmediato en el navegador (sin esperar a Python)
+                document.querySelectorAll('.emoji-card').forEach(c => c.classList.remove('active'));
+                document.getElementById('card-' + val).classList.add('active');
+                
+                // 2. Enviar el valor a Streamlit
                 window.parent.postMessage({{
                     isStreamlitMessage: true,
                     type: "streamlit:setComponentValue",
@@ -201,18 +205,17 @@ elif opcion == "Registrar Movimiento":
         </script>
         """
         
-        # El componente devuelve el valor del clic
+        # Renderizamos y capturamos el resultado
         res = components.html(emoji_component_html, height=230)
         
-        # IMPORTANTE: Solo actualizamos si el valor que viene de las caritas es distinto al que ya tenemos
+        # 2. Solo si el valor cambia, actualizamos el estado silenciosamente
         if res is not None:
             try:
-                # Extraemos el valor del mensaje (puede venir como dict o int)
-                val_clicado = int(res) if not isinstance(res, dict) else int(res.get('value', val_actual))
-                
-                if val_clicado != val_actual:
-                    st.session_state.satisfaccion = val_clicado
-                    st.rerun() # Esto hace que la carita se vea "seleccionada" visualmente
+                # Si recibimos un diccionario (común en nuevas versiones), extraemos el valor
+                nuevo_v = res if not isinstance(res, dict) else res.get('value')
+                if nuevo_v is not None and int(nuevo_v) != st.session_state.satisfaccion:
+                    st.session_state.satisfaccion = int(nuevo_v)
+                    # No usamos rerun aquí para evitar que el componente parpadee mientras el usuario elige
             except:
                 pass
 
@@ -223,8 +226,8 @@ elif opcion == "Registrar Movimiento":
         if descripcion and monto > 0:
             db = SessionLocal()
             try:
-                # Recuperamos el valor final del session_state
-                nivel_final = int(st.session_state.get('satisfaccion', 10))
+                # Aquí tomamos el último valor que guardó el mensaje del JS
+                nivel_final = int(st.session_state.satisfaccion)
 
                 nuevo_mov = Movimiento(tipo=tipo, descripcion=descripcion, monto=monto)
                 db.add(nuevo_mov)
@@ -238,19 +241,19 @@ elif opcion == "Registrar Movimiento":
                 db.add(nueva_metrica)
                 db.commit()
                 
-                st.success(f"✅ ¡Movimiento registrado! Nivel de satisfacción: {nivel_final}")
+                st.success(f"✅ ¡Guardado! Satisfacción nivel {nivel_final}")
                 st.balloons()
-                
-                # Opcional: Resetear la satisfacción a 10 para el próximo registro
+                # Resetear para el siguiente
                 st.session_state.satisfaccion = 10
+                st.rerun()
                 
             except Exception as e:
                 db.rollback()
-                st.error(f"Error al guardar: {str(e)}")
+                st.error(f"Error: {str(e)}")
             finally:
                 db.close()
         else:
-            st.warning("⚠️ Por favor completa la descripción y el monto.")
+            st.warning("⚠️ Completa descripción y monto.")
             
 elif opcion == "Recomendaciones":
     st.title("🤖 Recomendaciones") # Título actualizado
