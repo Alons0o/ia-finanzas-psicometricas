@@ -205,58 +205,61 @@ elif opcion == "Registrar Movimiento":
         </script>
         """
         
-        # Renderizamos y capturamos el resultado
+        # 1. Renderizar el componente (esto siempre va primero)
         res = components.html(emoji_component_html, height=230)
         
-        # 2. Solo si el valor cambia, actualizamos el estado silenciosamente
+        # 2. CAPTURA CRÍTICA: Actualizamos el estado de Streamlit inmediatamente
         if res is not None:
             try:
-                # Si recibimos un diccionario (común en nuevas versiones), extraemos el valor
-                nuevo_v = res if not isinstance(res, dict) else res.get('value')
-                if nuevo_v is not None and int(nuevo_v) != st.session_state.satisfaccion:
-                    st.session_state.satisfaccion = int(nuevo_v)
-                    # No usamos rerun aquí para evitar que el componente parpadee mientras el usuario elige
-            except:
+                # Si res es un diccionario (depende de la versión), extraemos el valor
+                if isinstance(res, dict) and "value" in res:
+                    val_enviado = int(res["value"])
+                else:
+                    val_enviado = int(res)
+                
+                # Actualizamos el session_state ANTES de que se pulse el botón de guardado
+                if val_enviado != st.session_state.satisfaccion:
+                    st.session_state.satisfaccion = val_enviado
+                    st.rerun() # Esto asegura que Python "se entere" del cambio de carita
+            except (ValueError, TypeError):
                 pass
 
     st.divider()
 
     # --- BOTÓN DE GUARDADO ---
     if st.button("🚀 Guardar Registro", use_container_width=True):
+        # Tomamos el valor DIRECTAMENTE del session_state que actualizó el componente
+        nivel_final = int(st.session_state.satisfaccion)
+        
         if descripcion and monto > 0:
             db = SessionLocal()
             try:
-                # Extraemos el valor que quedó seleccionado en las caritas
-                nivel_final = int(st.session_state.get('satisfaccion', 10))
-
                 nuevo_mov = Movimiento(tipo=tipo, descripcion=descripcion, monto=monto)
                 db.add(nuevo_mov)
                 db.flush() 
                 
                 nueva_metrica = MetricaSatisfaccion(
                     movimiento_id=nuevo_mov.id, 
-                    nivel=nivel_final, 
+                    nivel=nivel_final, # Aquí ahora sí irá el 3, 5, etc.
                     comentario=comentario
                 )
                 db.add(nueva_metrica)
                 db.commit()
                 
-                # MENSAJE DE ÉXITO REFORZADO
                 st.balloons()
-                st.success(f"✨ ¡Registro exitoso! El movimiento '{descripcion}' ha sido guardado con una satisfacción de {nivel_final}/10.")
+                st.success(f"✨ ¡Registro exitoso! Guardado con satisfacción nivel {nivel_final}")
                 
-                # Limpiamos el estado para el siguiente registro
+                # Opcional: reiniciar a 10 después del éxito
                 st.session_state.satisfaccion = 10
-                # Nota: Streamlit limpia los widgets con 'key' automáticamente si reiniciamos
+                st.rerun()
                 
             except Exception as e:
                 db.rollback()
-                st.error(f"Hubo un error al intentar guardar en la base de datos: {str(e)}")
+                st.error(f"Error: {str(e)}")
             finally:
                 db.close()
         else:
-            st.warning("⚠️ No se puede guardar: Asegúrate de haber escrito una descripción y un monto mayor a 0.")
-            
+            st.warning("⚠️ Completa descripción y monto.")
 elif opcion == "Recomendaciones":
     st.title("🤖 Recomendaciones") # Título actualizado
     db = SessionLocal()
