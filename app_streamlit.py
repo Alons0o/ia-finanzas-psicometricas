@@ -164,8 +164,10 @@ elif opcion == "Registrar Movimiento":
             img_path = f"assets/caritas/carita{i}.PNG"
             img_base64 = get_base64_image(img_path)
             
-            # Sincronizar clase 'active' con el valor actual en memoria
-            active_class = "active" if i == st.session_state.get('satisfaccion', 10) else ""
+            # Sincronizar visualmente con el session_state
+            # Si no hay valor, usamos 10 por defecto
+            val_actual = st.session_state.get('satisfaccion', 10)
+            active_class = "active" if i == val_actual else ""
             
             caritas_html_list += f"""
                 <div class="emoji-card {active_class}" id="card-{i}" onclick="selectEmoji({i})">
@@ -191,7 +193,6 @@ elif opcion == "Registrar Movimiento":
             function selectEmoji(val) {{
                 document.querySelectorAll('.emoji-card').forEach(c => c.classList.remove('active'));
                 document.getElementById('card-' + val).classList.add('active');
-                
                 window.parent.postMessage({{
                     isStreamlitMessage: true,
                     type: "streamlit:setComponentValue",
@@ -201,12 +202,13 @@ elif opcion == "Registrar Movimiento":
         </script>
         """
         
-        # 2. Renderizar el componente una sola vez
-        valor_capturado = components.html(emoji_component_html, height=230)
+        # 2. Renderizar y capturar. 
+        # IMPORTANTE: No uses 'valor_capturado' directamente en el éxito/DB.
+        res = components.html(emoji_component_html, height=230)
         
-        # 3. Sincronizar con session_state
-        if valor_capturado is not None:
-            st.session_state.satisfaccion = valor_capturado
+        # Si 'res' trae un número, actualizamos el estado
+        if res is not None:
+            st.session_state.satisfaccion = int(res)
 
     st.divider()
 
@@ -215,115 +217,32 @@ elif opcion == "Registrar Movimiento":
         if descripcion and monto > 0:
             db = SessionLocal()
             try:
-                # 1. Crear el movimiento
+                # Extraemos el valor del estado para asegurar que sea un INT y no un objeto
+                nivel_final = int(st.session_state.get('satisfaccion', 10))
+
                 nuevo_mov = Movimiento(tipo=tipo, descripcion=descripcion, monto=monto)
                 db.add(nuevo_mov)
                 db.flush() 
                 
-                # 2. Crear la métrica de satisfacción con el valor capturado de session_state
                 nueva_metrica = MetricaSatisfaccion(
                     movimiento_id=nuevo_mov.id, 
-                    nivel=st.session_state.satisfaccion, 
+                    nivel=nivel_final, 
                     comentario=comentario
                 )
                 db.add(nueva_metrica)
                 db.commit()
                 
-                st.success(f"✅ ¡Movimiento registrado! Nivel de satisfacción: {st.session_state.satisfaccion}")
+                st.success(f"✅ ¡Movimiento registrado! Nivel de satisfacción: {nivel_final}")
                 st.balloons()
             except Exception as e:
                 db.rollback()
-                st.error(f"Error al guardar: {e}")
+                # Aquí es donde antes fallaba porque intentaba imprimir el objeto HTML en el mensaje de error
+                st.error(f"Error al guardar: {str(e)}")
             finally:
                 db.close()
         else:
             st.warning("⚠️ Por favor completa la descripción y el monto.")
-
-elif opcion == "Visualizaciones":
-    st.title("Análisis de Datos")
-    db = SessionLocal()
-    motor = MotorPsicometrico(db)
-    datos_burbujas = motor.preparar_datos_burbujas()
-    db.close()
-
-    if not movimientos_db:
-        st.warning("Sin datos suficientes.")
-    else:
-        # --- CONFIGURACIÓN DE COLORES SINCRONIZADOS ---
-        descripciones_unicas = list(set(d['descripcion'] for d in datos_burbujas))
-        color_palette = plt.get_cmap("tab20")
-        color_map = {desc: color_palette(i / len(descripciones_unicas)) for i, desc in enumerate(descripciones_unicas)}
-
-        col_ing, col_gas = st.columns(2)
-        
-        def dibujar_pastel(ax, datos_lista, titulo, es_gasto=False):
-            resumen = {}
-            for d in datos_lista:
-                resumen[d.descripcion] = resumen.get(d.descripcion, 0) + d.monto
             
-            if not resumen:
-                ax.text(0.5, 0.5, "Sin datos", ha='center')
-                ax.axis('off')
-                return
-            
-            labels, sizes = list(resumen.keys()), list(resumen.values())
-            
-            if es_gasto:
-                colores = [color_map.get(label, "#cccccc") for label in labels]
-            else:
-                colores = plt.get_cmap("viridis")([i/len(labels) for i in range(len(labels))])
-
-            def format_monto(pct, allvals):
-                absolute = pct/100.*sum(allvals)
-                return f"${absolute:,.0f}"
-
-            # --- CORRECCIÓN AQUÍ: Eliminamos el duplicado en textprops ---
-            wedges, texts, autotexts = ax.pie(
-                sizes, 
-                labels=None, 
-                autopct=lambda pct: format_monto(pct, sizes), 
-                startangle=140, 
-                colors=colores,
-                pctdistance=0.75,
-                textprops={'color': "w", 'fontweight': 'bold', 'size': 10} 
-            )
-            
-            ax.legend(
-                wedges, 
-                [f"{l} ({ (s/sum(sizes))*100:.1f}%)" for l, s in zip(labels, sizes)],
-                title="Categorías",
-                loc="center left",
-                bbox_to_anchor=(0.9, 0, 0.5, 1),
-                fontsize=8
-            )
-            
-            ax.set_title(titulo, fontweight='bold', pad=20)
-
-        with col_ing:
-            fig_ing, ax_ing = plt.subplots()
-            dibujar_pastel(ax_ing, [m for m in movimientos_db if m.tipo=="INGRESO"], "Ingresos")
-            st.pyplot(fig_ing)
-
-        with col_gas:
-            fig_gas, ax_gas = plt.subplots()
-            dibujar_pastel(ax_gas, [m for m in movimientos_db if m.tipo=="GASTO"], "Gastos", es_gasto=True)
-            st.pyplot(fig_gas)
-
-        st.divider()
-        st.write("### Mapa de Valor (Gastos)")
-        
-        if datos_burbujas:
-            fig_b, ax_b = plt.subplots(figsize=(10, 5))
-            for d in datos_burbujas:
-                c_burbuja = color_map.get(d['descripcion'], "blue")
-                ax_b.scatter(d['monto'], d['satisfaccion'], s=d['peso']*15, alpha=0.7, color=c_burbuja, edgecolors="white")
-                ax_b.annotate(f" {d['descripcion']}", (d['monto'], d['satisfaccion']), fontsize=9, fontweight='bold')
-            
-            ax_b.set_xlabel("Monto Invertido ($)")
-            ax_b.set_ylabel("Nivel de Satisfacción")
-            ax_b.grid(True, linestyle='--', alpha=0.5)
-            st.pyplot(fig_b)
-
 elif opcion == "Recomendaciones":
     st.title("🤖 Recomendaciones") # Título actualizado
     db = SessionLocal()
