@@ -1,5 +1,6 @@
 import os
 import streamlit as st
+import streamlit.components.v1 as components
 import base64
 from streamlit_option_menu import option_menu
 import matplotlib.pyplot as plt
@@ -132,48 +133,105 @@ elif opcion == "Registrar Movimiento":
         monto = st.number_input("Monto ($)", value=0.0, step=0.01)
         tipo = st.selectbox("Tipo", ["GASTO", "INGRESO"])
 
-        with col_emocion:
-            st.markdown("### ¿Cómo te sientes con este movimiento?")
+        with col_emotion:
+    # Definimos el HTML y CSS integrado
+            emoji_html = """
+    <style>
+        .satisfaction-container {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #333;
+            text-align: left;
+            padding: 10px;
+        }
+        .question-text {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        .emoji-carousel {
+            display: flex;
+            gap: 15px;
+            justify-content: flex-start;
+            overflow-x: auto;
+            padding: 10px 5px;
+        }
+        .emoji-item {
+            cursor: pointer;
+            text-align: center;
+            transition: transform 0.2s ease;
+            opacity: 0.4; /* Por defecto se ven apagadas */
+            border-bottom: 3px solid transparent;
+            padding-bottom: 5px;
+        }
+        .emoji-item:hover {
+            transform: scale(1.1);
+            opacity: 0.8;
+        }
+        .emoji-item.active {
+            opacity: 1;
+            border-bottom: 3px solid #f39c12; /* Línea naranja de selección */
+        }
+        .emoji-img {
+            width: 60px;
+            height: 60px;
+            display: block;
+            margin-bottom: 5px;
+        }
+        .emoji-label {
+            font-size: 0.9rem;
+            font-weight: bold;
+        }
+    </style>
+
+    <div class="satisfaction-container">
+        <div class="question-text">¿Cómo te sientes con este movimiento?</div>
         
-        if "satisfaccion_select" not in st.session_state:
-            st.session_state.satisfaccion_select = 5
+        <div class="emoji-carousel" id="carousel">
+            <div class="emoji-item" onclick="selectEmoji(this, 1)">
+                <img src="https://cdn-icons-png.flaticon.com/512/599/599506.png" class="emoji-img">
+                <div class="emoji-label">1</div>
+            </div>
+            <div class="emoji-item" onclick="selectEmoji(this, 2)">
+                <img src="https://cdn-icons-png.flaticon.com/512/599/599483.png" class="emoji-img">
+                <div class="emoji-label">2</div>
+            </div>
+            <div class="emoji-item" onclick="selectEmoji(this, 3)">
+                <img src="https://cdn-icons-png.flaticon.com/512/599/599502.png" class="emoji-img">
+                <div class="emoji-label">3</div>
+            </div>
+            <div class="emoji-item active" onclick="selectEmoji(this, 4)">
+                <img src="https://cdn-icons-png.flaticon.com/512/599/599527.png" class="emoji-img">
+                <div class="emoji-label">4</div>
+            </div>
+            <div class="emoji-item" onclick="selectEmoji(this, 5)">
+                <img src="https://cdn-icons-png.flaticon.com/512/599/599509.png" class="emoji-img">
+                <div class="emoji-label">5</div>
+            </div>
+        </div>
+    </div>
 
-        iconos_html = ""
-        for i in range(1, 11):
-            try:
-                img_path = f"assets/caritas/carita{i}.PNG"
-                img_b64 = get_base64_image(img_path)
-                
-                es_activa = (st.session_state.satisfaccion_select == i)
-                opacidad = "1" if es_activa else "0.2"
-                filtro = "none" if es_activa else "grayscale(100%)"
-                transform = "scale(1.2)" if es_activa else "scale(0.9)"
-                # Color de borde dinámico: Rojo para tristes, Verde para felices
-                color_borde = "#dc3545" if i <= 3 else "#ffc107" if i <= 7 else "#28a745"
-                borde = f"4px solid {color_borde}" if es_activa else "4px solid transparent"
-
-                iconos_html += f'''<div style="flex: 0 0 auto; width: 65px; margin: 5px; text-align: center;"><img src="data:image/png;base64,{img_b64}" style="width: 55px; height: 55px; opacity: {opacidad}; filter: {filtro}; transform: {transform}; border-bottom: {borde}; transition: 0.3s; cursor: pointer;"><div style="font-size: 12px; font-weight: bold; margin-top: 5px; color: #555;">{i}</div></div>'''
-            except:
-                iconos_html += f'<div style="flex: 0 0 auto; width: 65px;">⚠️</div>'
-
-        # El contenedor principal también sin espacios al inicio de las líneas de string
-        carrete_html = f'''<div style="display: flex; overflow-x: auto; background: white; padding: 15px; border-radius: 20px; box-shadow: inset 0 0 10px rgba(0,0,0,0.05); border: 1px solid #eaeaea;">{iconos_html}</div>'''
-        
-        st.markdown(carrete_html, unsafe_allow_html=True)
-        
-        # Slider para controlar la selección
-        nuevo_nivel = st.select_slider(
-            "Nivel de satisfacción",
-            options=range(1, 11),
-            value=st.session_state.satisfaccion_select,
-            key="slider_emociones_final",
-            label_visibility="collapsed"
-        )
-
-        if nuevo_nivel != st.session_state.satisfaccion_select:
-            st.session_state.satisfaccion_select = nuevo_nivel
-            st.rerun()
+    <script>
+        function selectEmoji(element, value) {
+            // Quitar clase activa de todos
+            const items = document.querySelectorAll('.emoji-item');
+            items.forEach(item => item.classList.remove('active'));
+            
+            // Añadir clase activa al clickeado
+            element.classList.add('active');
+            
+            // Enviar el valor a Streamlit (opcional, si necesitas procesarlo en Python)
+            window.parent.postMessage({
+                type: 'streamlit:setComponentValue',
+                value: value
+            }, '*');
+            
+            console.log("Nivel seleccionado:", value);
+        }
+    </script>
+    """
     
+    # Renderizamos el componente en la columna
+    components.html(emoji_html, height=200)
     # --- EL FORMULARIO DEBE ESTAR AQUÍ (FUERA DE LAS COLUMNAS) ---
     with st.form("formulario_final", clear_on_submit=True):
         comentario = st.text_area("Comentario (¿Cómo te sentiste?)")
