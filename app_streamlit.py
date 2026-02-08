@@ -149,11 +149,9 @@ if opcion == "Inicio":
 elif opcion == "Registrar Movimiento":
     st.title("Registrar Movimiento")
     
-    # 1. El "Ancla": Un selector oculto que JavaScript manipulará
-    # Usamos un index que coincida con el valor guardado
     if 'satisfaccion' not in st.session_state:
         st.session_state.satisfaccion = 10
-
+        
     col_input, col_emocion = st.columns([1, 1.5])
     
     with col_input:
@@ -163,62 +161,51 @@ elif opcion == "Registrar Movimiento":
         comentario = st.text_area("Comentario (Opcional)", key="reg_com")
 
     with col_emocion:
-        val_actual = st.session_state.satisfaccion
+        st.markdown("### ¿Cómo te sientes con este movimiento?")
         
-        # Generar el HTML de las caritas
-        caritas_html_list = ""
-        for i in range(1, 11):
-            img_path = f"assets/caritas/carita{i}.PNG"
-            img_base64 = get_base64_image(img_path)
-            # Resaltar la seleccionada
-            active_class = "active" if i == val_actual else ""
-            
-            caritas_html_list += f"""
-                <div class="emoji-card {active_class}" onclick="sendValue({i})">
-                    <img src="{img_base64}" class="emoji-img">
-                    <div class="emoji-num">{i}</div>
-                </div>
-            """
+        # CSS para que los botones de las caritas se vean como tarjetas
+        st.markdown("""
+            <style>
+                div[data-testid="stHorizontalBlock"] button {
+                    border: 2px solid #f0f2f6;
+                    border-radius: 15px;
+                    padding: 10px;
+                    background-color: #f8f9fb;
+                    transition: all 0.2s ease;
+                }
+                div[data-testid="stHorizontalBlock"] button:hover {
+                    border-color: #ff4b4b;
+                    background-color: #ffffff;
+                }
+            </style>
+        """, unsafe_allow_html=True)
 
-        emoji_html = f"""
-        <style>
-            .carrete {{ display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; background: #f8f9fb; padding: 15px; border-radius: 15px; }}
-            .emoji-card {{ cursor: pointer; text-align: center; opacity: 0.4; filter: grayscale(100%); transition: 0.3s; padding: 5px; border-radius: 10px; border: 2px solid transparent; }}
-            .emoji-card:hover {{ opacity: 0.8; background: #fff; }}
-            .emoji-card.active {{ opacity: 1; filter: grayscale(0%); background: #fff; border: 2px solid #ff4b4b; transform: scale(1.1); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }}
-            .emoji-img {{ width: 40px; height: 40px; object-fit: contain; }}
-            .emoji-num {{ font-weight: bold; font-size: 0.75rem; margin-top: 4px; color: #333; }}
-        </style>
-        <div class="carrete">{caritas_html_list}</div>
-        <script>
-            function sendValue(val) {{
-                // Enviamos el valor al componente de Streamlit
-                window.parent.postMessage({{
-                    isStreamlitMessage: true,
-                    type: "streamlit:setComponentValue",
-                    value: val
-                }}, "*");
-            }}
-        </script>
-        """
-        
-        # El componente HTML ahora es un widget que devuelve el valor del clic
-        # Usamos una key estática pero capturamos el resultado
-        resultado_click = components.html(emoji_html, height=220, key="selector_emocional")
-        
-        # Actualizar el estado si el usuario hizo clic en una carita nueva
-        if resultado_click is not None:
-            # Si el valor capturado es distinto al que tenemos, actualizamos y recargamos
-            if int(resultado_click) != st.session_state.satisfaccion:
-                st.session_state.satisfaccion = int(resultado_click)
-                st.rerun()
+        # Creamos una cuadrícula de 5x2 para las caritas
+        grid1 = st.columns(5)
+        grid2 = st.columns(5)
+        grids = grid1 + grid2
+
+        for i in range(1, 11):
+            with grids[i-1]:
+                img_path = f"assets/caritas/carita{i}.PNG"
+                img_base64 = get_base64_image(img_path)
+                
+                # Resaltamos el botón si es el seleccionado actualmente
+                label = f"⭐ {i}" if i == st.session_state.satisfaccion else f"{i}"
+                
+                # Mostramos la imagen encima del botón
+                st.markdown(f'<img src="{img_base64}" style="width:100%; max-width:40px; display:block; margin:auto; margin-bottom:5px;">', unsafe_allow_html=True)
+                
+                if st.button(label, key=f"btn_face_{i}", use_container_width=True):
+                    st.session_state.satisfaccion = i
+                    st.rerun()
 
         st.info(f"Seleccionado: **Nivel {st.session_state.satisfaccion}**")
 
     st.divider()
 
     # --- BOTÓN DE GUARDADO ---
-    if st.button("🚀 Guardar Registro", use_container_width=True):
+    if st.button("🚀 Guardar Registro", use_container_width=True, type="primary"):
         if descripcion and monto > 0:
             nivel_final = st.session_state.satisfaccion
             db = SessionLocal()
@@ -235,16 +222,16 @@ elif opcion == "Registrar Movimiento":
                 db.add(nueva_metrica)
                 db.commit()
                 
-                st.success(f"✅ Registro guardado con éxito (Nivel {nivel_final})")
-                st.session_state.satisfaccion = 10 # Reset
+                st.success(f"✅ Guardado con satisfacción nivel {nivel_final}")
+                st.session_state.satisfaccion = 10
                 st.rerun()
             except Exception as e:
                 db.rollback()
-                st.error(f"Error al guardar: {e}")
+                st.error(f"Error: {e}")
             finally:
                 db.close()
         else:
-            st.warning("⚠️ Debes completar la descripción y el monto.")
+            st.warning("⚠️ Completa descripción y monto.")
             
 elif opcion == "Recomendaciones":
     st.title("🤖 Recomendaciones") # Título actualizado
