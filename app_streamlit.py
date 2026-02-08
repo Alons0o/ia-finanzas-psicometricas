@@ -9,6 +9,15 @@ from app.ia.analisis_psicometrico import MotorPsicometrico
 from app.models.movimiento import Movimiento
 from app.models.satisfaccion import MetricaSatisfaccion
 
+if 'satisfaccion' not in st.session_state:
+    st.session_state.satisfaccion = 10 # Empezamos en 10 por defecto
+
+def get_base64_image(image_path):
+    try:
+        with open(image_path, "rb") as img_file:
+            return f"data:image/png;base64,{base64.b64encode(img_file.read()).decode()}"
+    except: return ""
+
 # 1. Función de carga ultra-rápida con caché de objeto completo
 def get_base64_image(path):
     with open(path, "rb") as img_file:
@@ -149,132 +158,90 @@ elif opcion == "Registrar Movimiento":
         
         col_form, col_emotion = st.columns([1, 1.5])
         
+    with col_form:
+        st.title("Registrar Movimiento")
+    # Es vital que estas 'key' coincidan con las que usas en el st.success
+    desc = st.text_input("Descripción", placeholder="Ej. Sueldo...", key="desc_mov")
+    monto = st.number_input("Monto ($)", min_value=0.0, step=0.01, key="monto_mov")
+    tipo = st.selectbox("Tipo", ["GASTO", "INGRESO"], key="tipo_mov")
+        
     with col_emotion:
-    # 1. Cargamos las 10 caritas desde tu carpeta assets/caritas/
-    # Asegúrate de que los nombres coincidan: carita1.PNG, carita2.PNG, etc.
-        caritas_data = []
-    for i in range(1, 11):
-        path = f"assets/caritas/carita{i}.PNG" # Ajusta la extensión si es .png o .PNG
-        b64_str = get_base64_image(path)
-        caritas_data.append({"val": i, "img": b64_str})
-
-    # 2. Generamos el HTML de los items dinámicamente
-    emoji_items_html = ""
-    for carita in caritas_data:
-        active_class = "active" if carita["val"] == 5 else "" # El 5 marcado por defecto
-        emoji_items_html += f"""
-            <div class="emoji-btn {active_class}" onclick="select(this, {carita['val']})">
-                <img src="{carita['img']}" class="emoji-img">
-                <div class="emoji-num">{carita['val']}</div>
-            </div>
-        """
-
-    # 3. El componente completo
-    emoji_html = f"""
-    <style>
-        .container {{
-            font-family: 'Source Sans Pro', sans-serif;
-            display: flex;
-            flex-direction: column;
-        }}
-        .pregunta {{
-            font-size: 1.1rem;
-            font-weight: 700;
-            margin-bottom: 12px;
-            color: #31333F;
-        }}
-        .carrete {{
-            display: flex;
-            gap: 8px;
-            background-color: #f8f9fb;
-            padding: 15px;
-            border-radius: 12px;
-            border: 1px solid #e6e9ef;
-            overflow-x: auto; /* Por si las 10 no caben en pantalla */
-        }}
-        .emoji-btn {{
-            cursor: pointer;
-            text-align: center;
-            min-width: 50px;
-            transition: all 0.2s ease;
-            filter: grayscale(100%);
-            opacity: 0.5;
-        }}
-        .emoji-btn:hover {{
-            transform: scale(1.1);
-            filter: grayscale(0%);
-            opacity: 1;
-        }}
-        .emoji-btn.active {{
-            filter: grayscale(0%);
-            opacity: 1;
-            border-bottom: 3px solid #f39c12;
-            padding-bottom: 5px;
-        }}
-        .emoji-img {{
-            width: 40px;
-            height: 40px;
-            object-fit: contain;
-        }}
-        .emoji-num {{
-            font-weight: bold;
-            font-size: 0.75rem;
-            margin-top: 4px;
-            color: #555;
-        }}
-    </style>
-
-    <div class="container">
-        <div class="pregunta">¿Cómo te sientes con este movimiento?</div>
-        <div class="carrete">
-            {emoji_items_html}
-        </div>
-    </div>
-
-    <script>
-        function select(el, val) {{
-            document.querySelectorAll('.emoji-btn').forEach(b => b.classList.remove('active'));
-            el.classList.add('active');
-            
-            // Enviar valor a Streamlit
-            window.parent.postMessage({{
-                type: 'streamlit:setComponentValue',
-                value: val
-            }}, '*');
-        }}
-    </script>
-    """
-    caritas_html_list = ""
+    # 1. Cargamos las 10 caritas locales y las convertimos a Base64
+        caritas_html_list = ""
     for i in range(1, 11):
         img_path = f"assets/caritas/carita{i}.PNG"
         img_base64 = get_base64_image(img_path)
         
-        # IMPORTANTE: Quitamos la clase 'active' fija para que no fuerce el 4 al recargar
+        # Sincronizamos con el estado de la sesión para que la carita se mantenga iluminada
+        # Si no hay nada seleccionado aún, por defecto no hay ninguna activa o puedes poner i == 10
+        active_class = "active" if i == st.session_state.get('satisfaccion', 10) else ""
+        
         caritas_html_list += f"""
-            <div class="emoji-card" id="card-{i}" onclick="selectEmoji({i})">
+            <div class="emoji-card {active_class}" id="card-{i}" onclick="selectEmoji({i})">
                 <img src="{img_base64}" class="emoji-img">
                 <div class="emoji-num">{i}</div>
             </div>
         """
 
+    # 2. Definimos el componente HTML con la lógica de comunicación corregida
     emoji_component = f"""
     <style>
-        .carrete {{ display: flex; flex-wrap: wrap; gap: 10px; background: #f8f9fb; padding: 20px; border-radius: 15px; border: 1px solid #e6e9ef; justify-content: center; }}
-        .emoji-card {{ cursor: pointer; text-align: center; opacity: 0.4; filter: grayscale(100%); min-width: 45px; transition: 0.3s; }}
-        .emoji-card.active {{ opacity: 1; filter: grayscale(0%); border-bottom: 3px solid #f39c12; }}
-        .emoji-img {{ width: 100%; max-width: 40px; height: auto; }}
-        .emoji-num {{ font-weight: bold; font-size: 0.8rem; color: #444; }}
+        .main-container {{
+            font-family: 'Source Sans Pro', sans-serif;
+            padding: 10px;
+        }}
+        .carrete {{ 
+            display: flex; 
+            flex-wrap: wrap; 
+            gap: 10px; 
+            background: #f8f9fb; 
+            padding: 20px; 
+            border-radius: 15px; 
+            border: 1px solid #e6e9ef; 
+            justify-content: center; 
+        }}
+        .emoji-card {{ 
+            cursor: pointer; 
+            text-align: center; 
+            opacity: 0.4; 
+            filter: grayscale(100%); 
+            min-width: 45px; 
+            transition: all 0.3s ease; 
+        }}
+        .emoji-card:hover {{
+            transform: scale(1.1);
+            opacity: 0.7;
+        }}
+        .emoji-card.active {{ 
+            opacity: 1; 
+            filter: grayscale(0%); 
+            border-bottom: 3px solid #f39c12; 
+            transform: scale(1.1);
+        }}
+        .emoji-img {{ 
+            width: 100%; 
+            max-width: 40px; 
+            height: auto; 
+        }}
+        .emoji-num {{ 
+            font-weight: bold; 
+            font-size: 0.8rem; 
+            color: #444; 
+            margin-top: 5px;
+        }}
     </style>
 
     <div class="main-container">
-        <div style="font-weight: bold; margin-bottom: 15px;">¿Cómo te sientes con este movimiento?</div>
+        <div style="font-weight: bold; margin-bottom: 15px; font-size: 1.1rem; color: #31333F;">
+            ¿Cómo te sientes con este movimiento?
+        </div>
         <div class="carrete">
             {caritas_html_list}
         </div>
     </div>
 
     <script>
-        // Esta función es la que realmente envía el dato a Streamlit
+        // Función vital para que Streamlit reciba el valor correctamente
         function sendMessageToStreamlit(value) {{
             window.parent.postMessage({{
                 isStreamlitMessage: true,
@@ -284,17 +251,22 @@ elif opcion == "Registrar Movimiento":
         }}
 
         function selectEmoji(val) {{
-            // 1. Limpiar todas las clases active
+            // 1. Feedback visual inmediato: quitar clase a todos y darla al seleccionado
             document.querySelectorAll('.emoji-card').forEach(card => card.classList.remove('active'));
-            
-            // 2. Iluminar la seleccionada
             document.getElementById('card-' + val).classList.add('active');
             
-            // 3. ENVIAR EL VALOR A PYTHON
+            // 2. Notificar a Python/Streamlit del cambio
             sendMessageToStreamlit(val);
         }}
     </script>
     """
+    
+    # 3. Renderizamos el componente y capturamos el valor
+    seleccion = components.html(emoji_component, height=250)
+    
+    # 4. Actualizamos el session_state si el usuario hizo clic
+    if seleccion is not None:
+        st.session_state.satisfaccion = seleccion
     
     # 2. CAPTURAR EL VALOR EN UNA VARIABLE DE PYTHON
     # La variable 'satisfaccion_seleccionada' guardará el número (1-10)
