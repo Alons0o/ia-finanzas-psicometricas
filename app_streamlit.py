@@ -219,6 +219,11 @@ elif opcion == "Registrar Movimiento":
             key="slider_emociones",
             label_visibility="collapsed"
         )
+        
+        # Si el slider cambia, refrescamos para actualizar el resaltado visual
+        if nuevo_nivel != st.session_state.satisfaccion_select:
+            st.session_state.satisfaccion_select = nuevo_nivel
+            st.rerun()
     
     # --- EL FORMULARIO DEBE ESTAR AQUÍ (FUERA DE LAS COLUMNAS) ---
     with st.form("formulario_final", clear_on_submit=True):
@@ -486,3 +491,4 @@ elif opcion == "Gestionar Historial":
             st.dataframe(df_historial, hide_index=True, use_container_width=True)
 
     db.close()
+    
