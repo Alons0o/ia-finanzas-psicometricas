@@ -135,111 +135,114 @@ elif opcion == "Registrar Movimiento":
         
         col_form, col_emotion = st.columns([1, 1.2])
         
+        col_form, col_emotion = st.columns([1, 1.2])
+
         with col_form:
             st.subheader("Registrar Movimiento")
-    st.text_input("Descripción", placeholder="Ej. Sueldo, Alquiler, Comida...")
-    st.number_input("Monto ($)", min_value=0.0, value=0.0, step=0.01)
-    st.selectbox("Tipo", ["GASTO", "INGRESO"])
-    
+    # Añadimos 'key' para evitar el error de duplicados
+    st.text_input("Descripción", placeholder="Ej. Sueldo, Alquiler, Comida...", key="desc_movimiento")
+    st.number_input("Monto ($)", min_value=0.0, value=0.0, step=0.01, key="monto_movimiento")
+    st.selectbox("Tipo", ["GASTO", "INGRESO"], key="tipo_movimiento")
+
     with col_emotion:
-    # Definimos el HTML y CSS integrado
-            emoji_html = """
+    # El HTML modificado: Título arriba, Carrete abajo, Sin barra roja
+        emoji_html = """
     <style>
-        .satisfaction-container {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            color: #333;
-            text-align: left;
-            padding: 10px;
-        }
-        .question-text {
-            font-size: 1.2rem;
-            font-weight: bold;
-            margin-bottom: 20px;
-        }
-        .emoji-carousel {
+        .container {
+            font-family: sans-serif;
             display: flex;
-            gap: 15px;
-            justify-content: flex-start;
-            overflow-x: auto;
-            padding: 10px 5px;
+            flex-direction: column;
+            align-items: flex-start;
         }
-        .emoji-item {
+        .pregunta {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #31333F;
+        }
+        .carrete {
+            display: flex;
+            gap: 12px;
+            background-color: #f0f2f6;
+            padding: 15px;
+            border-radius: 12px;
+            border: 1px solid #ddd;
+        }
+        .emoji-btn {
             cursor: pointer;
             text-align: center;
-            transition: transform 0.2s ease;
-            opacity: 0.4; /* Por defecto se ven apagadas */
-            border-bottom: 3px solid transparent;
-            padding-bottom: 5px;
+            transition: all 0.2s ease;
+            filter: grayscale(80%);
+            opacity: 0.6;
         }
-        .emoji-item:hover {
-            transform: scale(1.1);
-            opacity: 0.8;
-        }
-        .emoji-item.active {
+        .emoji-btn:hover {
+            transform: scale(1.15);
+            filter: grayscale(0%);
             opacity: 1;
-            border-bottom: 3px solid #f39c12; /* Línea naranja de selección */
+        }
+        .emoji-btn.active {
+            filter: grayscale(0%);
+            opacity: 1;
+            border-bottom: 3px solid #FF4B4B; /* Color Streamlit o Naranja */
+            padding-bottom: 2px;
         }
         .emoji-img {
-            width: 60px;
-            height: 60px;
+            width: 45px;
+            height: 45px;
             display: block;
-            margin-bottom: 5px;
+            margin: 0 auto 5px;
         }
-        .emoji-label {
-            font-size: 0.9rem;
+        .emoji-num {
             font-weight: bold;
+            font-size: 0.8rem;
         }
     </style>
 
-    <div class="satisfaction-container">
-        <div class="question-text">¿Cómo te sientes con este movimiento?</div>
+    <div class="container">
+        <div class="pregunta">¿Cómo te sientes con este movimiento?</div>
         
-        <div class="emoji-carousel" id="carousel">
-            <div class="emoji-item" onclick="selectEmoji(this, 1)">
-                <img src="https://cdn-icons-png.flaticon.com/512/599/599506.png" class="emoji-img">
-                <div class="emoji-label">1</div>
+        <div class="carrete">
+            <div class="emoji-btn" onclick="select(this, 1)">
+                <img src="https://cdn-icons-png.flaticon.com/512/1791/1791385.png" class="emoji-img">
+                <div class="emoji-num">1</div>
             </div>
-            <div class="emoji-item" onclick="selectEmoji(this, 2)">
-                <img src="https://cdn-icons-png.flaticon.com/512/599/599483.png" class="emoji-img">
-                <div class="emoji-label">2</div>
+            <div class="emoji-btn" onclick="select(this, 2)">
+                <img src="https://cdn-icons-png.flaticon.com/512/1791/1791353.png" class="emoji-img">
+                <div class="emoji-num">2</div>
             </div>
-            <div class="emoji-item" onclick="selectEmoji(this, 3)">
-                <img src="https://cdn-icons-png.flaticon.com/512/599/599502.png" class="emoji-img">
-                <div class="emoji-label">3</div>
+            <div class="emoji-btn" onclick="select(this, 3)">
+                <img src="https://cdn-icons-png.flaticon.com/512/1791/1791319.png" class="emoji-img">
+                <div class="emoji-num">3</div>
             </div>
-            <div class="emoji-item active" onclick="selectEmoji(this, 4)">
-                <img src="https://cdn-icons-png.flaticon.com/512/599/599527.png" class="emoji-img">
-                <div class="emoji-label">4</div>
+            <div class="emoji-btn active" onclick="select(this, 4)">
+                <img src="https://cdn-icons-png.flaticon.com/512/1791/1791231.png" class="emoji-img">
+                <div class="emoji-num">4</div>
             </div>
-            <div class="emoji-item" onclick="selectEmoji(this, 5)">
-                <img src="https://cdn-icons-png.flaticon.com/512/599/599509.png" class="emoji-img">
-                <div class="emoji-label">5</div>
+            <div class="emoji-btn" onclick="select(this, 5)">
+                <img src="https://cdn-icons-png.flaticon.com/512/1791/1791236.png" class="emoji-img">
+                <div class="emoji-num">5</div>
             </div>
         </div>
     </div>
 
     <script>
-        function selectEmoji(element, value) {
-            // Quitar clase activa de todos
-            const items = document.querySelectorAll('.emoji-item');
-            items.forEach(item => item.classList.remove('active'));
+        function select(el, val) {
+            // Limpiar activos
+            document.querySelectorAll('.emoji-btn').forEach(b => b.classList.remove('active'));
+            // Activar actual
+            el.classList.add('active');
             
-            // Añadir clase activa al clickeado
-            element.classList.add('active');
-            
-            // Enviar el valor a Streamlit (opcional, si necesitas procesarlo en Python)
+            // Enviar a Streamlit
             window.parent.postMessage({
                 type: 'streamlit:setComponentValue',
-                value: value
+                value: val
             }, '*');
-            
-            console.log("Nivel seleccionado:", value);
         }
     </script>
     """
-    
     # Renderizamos el componente en la columna
-    components.html(emoji_html, height=200)
+    components.html(emoji_html, height=180)
+    
     # --- EL FORMULARIO DEBE ESTAR AQUÍ (FUERA DE LAS COLUMNAS) ---
     with st.form("formulario_final", clear_on_submit=True):
         comentario = st.text_area("Comentario (¿Cómo te sentiste?)")
