@@ -62,41 +62,7 @@ def renderizar_fila_movimiento(m, valor_max):
 # --- CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="IA Finanzas Psicométricas", page_icon="🧠", layout="wide")
 
-# --- BARRA LATERAL (MENÚ CORREGIDO PARA MODO OSCURO) ---
-with st.sidebar:
-    st.markdown("<h2 style='text-align: center;'> Menú</h2>", unsafe_allow_html=True)
-    
-    opcion = option_menu(
-        menu_title=None, 
-        options=["Inicio", "Registrar Movimiento", "Visualizaciones", "Recomendaciones", "Gestionar Historial"],
-        icons=["house", "pencil-square", "bar-chart", "robot", "gear"], 
-        menu_icon="cast",
-        default_index=0,
-        styles={
-            "container": {
-                "padding": "0!important", 
-                "background-color": "#1e1e1e", # Fondo oscuro fijo para evitar el problema del navegador
-                "border": "1px solid #333"
-            },
-            "icon": {
-                "color": "#ff4b4b", 
-                "font-size": "20px"
-            }, 
-            "nav-link": {
-                "font-size": "16px", 
-                "text-align": "left", 
-                "margin": "8px", 
-                "font-weight": "bold",
-                "color": "#ffffff", # Texto blanco siempre visible
-                "--hover-color": "#333333" # Color al pasar el mouse
-            },
-            "nav-link-selected": {
-                "background-color": "#ff4b4b", 
-                "color": "white",
-                "font-weight": "bold"
-            },
-        }
-    )
+
 # --- LÓGICA DE DATOS GLOBAL ---
 db = SessionLocal()
 movimientos_db = db.query(Movimiento).all()
