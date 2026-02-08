@@ -226,8 +226,8 @@ elif opcion == "Registrar Movimiento":
         if descripcion and monto > 0:
             db = SessionLocal()
             try:
-                # Aquí tomamos el último valor que guardó el mensaje del JS
-                nivel_final = int(st.session_state.satisfaccion)
+                # Extraemos el valor que quedó seleccionado en las caritas
+                nivel_final = int(st.session_state.get('satisfaccion', 10))
 
                 nuevo_mov = Movimiento(tipo=tipo, descripcion=descripcion, monto=monto)
                 db.add(nuevo_mov)
@@ -241,19 +241,21 @@ elif opcion == "Registrar Movimiento":
                 db.add(nueva_metrica)
                 db.commit()
                 
-                st.success(f"✅ ¡Guardado! Satisfacción nivel {nivel_final}")
+                # MENSAJE DE ÉXITO REFORZADO
                 st.balloons()
-                # Resetear para el siguiente
+                st.success(f"✨ ¡Registro exitoso! El movimiento '{descripcion}' ha sido guardado con una satisfacción de {nivel_final}/10.")
+                
+                # Limpiamos el estado para el siguiente registro
                 st.session_state.satisfaccion = 10
-                st.rerun()
+                # Nota: Streamlit limpia los widgets con 'key' automáticamente si reiniciamos
                 
             except Exception as e:
                 db.rollback()
-                st.error(f"Error: {str(e)}")
+                st.error(f"Hubo un error al intentar guardar en la base de datos: {str(e)}")
             finally:
                 db.close()
         else:
-            st.warning("⚠️ Completa descripción y monto.")
+            st.warning("⚠️ No se puede guardar: Asegúrate de haber escrito una descripción y un monto mayor a 0.")
             
 elif opcion == "Recomendaciones":
     st.title("🤖 Recomendaciones") # Título actualizado
