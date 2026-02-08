@@ -137,13 +137,7 @@ elif opcion == "Registrar Movimiento":
         
         col_form, col_emotion = st.columns([1, 1.2])
 
-        with col_form:
-            st.subheader("Registrar Movimiento")
-    # Añadimos 'key' para evitar el error de duplicados
-    st.text_input("Descripción", placeholder="Ej. Sueldo, Alquiler, Comida...", key="desc_movimiento")
-    st.number_input("Monto ($)", min_value=0.0, value=0.0, step=0.01, key="monto_movimiento")
-    st.selectbox("Tipo", ["GASTO", "INGRESO"], key="tipo_movimiento")
-
+        
     with col_emotion:
     # El HTML modificado: Título arriba, Carrete abajo, Sin barra roja
         emoji_html = """
