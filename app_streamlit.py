@@ -164,7 +164,7 @@ elif opcion == "Registrar Movimiento":
         comentario = st.text_area("Comentario (Opcional)", key="reg_com")
 
     with col_emocion:
-        # 1. Definimos el valor inicial solo si no existe
+        # 1. Aseguramos que el estado exista
         if 'satisfaccion' not in st.session_state:
             st.session_state.satisfaccion = 10
             
@@ -174,7 +174,7 @@ elif opcion == "Registrar Movimiento":
         for i in range(1, 11):
             img_path = f"assets/caritas/carita{i}.PNG"
             img_base64 = get_base64_image(img_path)
-            # El HTML inicial se dibuja con lo que diga el session_state
+            # Solo la carita guardada en el estado actual se ve "activa" al cargar
             active_class = "active" if i == val_actual else ""
             
             caritas_html_list += f"""
@@ -193,16 +193,16 @@ elif opcion == "Registrar Movimiento":
             .emoji-num {{ font-weight: bold; font-size: 0.8rem; color: #444; margin-top: 5px; pointer-events: none; }}
         </style>
         <div class="main-container">
-            <div style="font-weight: bold; margin-bottom: 15px; font-family: sans-serif;">¿Cómo te sientes?</div>
+            <div style="font-weight: bold; margin-bottom: 15px; font-family: sans-serif;">¿Cómo te sientes? (Seleccionado: {val_actual})</div>
             <div class="carrete">{caritas_html_list}</div>
         </div>
         <script>
             function selectEmoji(val) {{
-                // Cambio visual inmediato e interno del HTML
+                // Cambio visual inmediato en el navegador
                 document.querySelectorAll('.emoji-card').forEach(c => c.classList.remove('active'));
                 document.getElementById('card-' + val).classList.add('active');
                 
-                // Enviamos a Streamlit
+                // Enviamos el valor a Streamlit
                 window.parent.postMessage({{
                     isStreamlitMessage: true,
                     type: "streamlit:setComponentValue",
@@ -212,28 +212,29 @@ elif opcion == "Registrar Movimiento":
         </script>
         """
         
-        # Renderizamos. Usamos una KEY fija para que el componente no se destruya al recargar.
-        res = components.html(emoji_component_html, height=230, key="selector_emociones")
+        # Renderizamos el HTML (SIN el argumento key)
+        res = components.html(emoji_component_html, height=230)
         
-        # 2. CAPTURA DEL VALOR: Actualizamos el estado de fondo
+        # 2. Captura de datos: actualizamos el estado solo si el usuario cambió la selección
         if res is not None:
             try:
-                # Si res es dict, extraemos 'value', si no, directo
-                v = res if not isinstance(res, dict) else res.get('value', val_actual)
-                if int(v) != st.session_state.satisfaccion:
-                    st.session_state.satisfaccion = int(v)
-                    # No hacemos rerun aquí para que el usuario pueda seguir haciendo clic libremente
+                # El componente devuelve el valor enviado por postMessage
+                v_nuevo = int(res) if not isinstance(res, dict) else int(res.get('value', val_actual))
+                if v_nuevo != st.session_state.satisfaccion:
+                    st.session_state.satisfaccion = v_nuevo
+                    # Forzamos un rerun solo para que el mensaje "Seleccionado: X" se actualice
+                    st.rerun()
             except:
                 pass
 
     st.divider()
 
-    # --- 3. BOTÓN DE GUARDADO (Usa el valor validado en el paso anterior) ---
+    # --- BOTÓN DE GUARDADO ---
     if st.button("🚀 Guardar Registro", use_container_width=True):
+        # USAMOS EL VALOR DEL SESSION STATE
+        nivel_final = st.session_state.satisfaccion
+        
         if descripcion and monto > 0:
-            # Aquí está el truco: nivel_final NO viene de 'res', viene de 'session_state'
-            nivel_final = st.session_state.satisfaccion 
-            
             db = SessionLocal()
             try:
                 nuevo_mov = Movimiento(tipo=tipo, descripcion=descripcion, monto=monto)
@@ -248,11 +249,13 @@ elif opcion == "Registrar Movimiento":
                 db.add(nueva_metrica)
                 db.commit()
                 
-                st.success(f"✅ ¡Registro exitoso! Guardado con satisfacción {nivel_final}")
                 st.balloons()
+                st.success(f"✅ ¡Registro exitoso! Guardado con satisfacción nivel {nivel_final}")
                 
-                # Resetear para el próximo
+                # Reiniciamos a 10 para el siguiente gasto
                 st.session_state.satisfaccion = 10
+                st.rerun()
+                
             except Exception as e:
                 db.rollback()
                 st.error(f"Error: {e}")
