@@ -316,66 +316,94 @@ elif opcion == "Gestionar Historial":
     st.title("Gestión de Historial")
     db = SessionLocal()
     
-    # Obtenemos los datos uniendo Movimiento con su Satisfacción
+    # 1. Obtener datos uniendo Movimiento con Satisfacción
     historial = db.query(Movimiento).join(MetricaSatisfaccion).order_by(Movimiento.fecha.desc()).all()
     
     if not historial:
         st.info("Aún no tienes movimientos registrados.")
     else:
-        # 1. Mostrar la tabla de datos
-        datos_tabla = []
+        # 2. Preparar el DataFrame para el editor
+        import pandas as pd
+        datos_lista = []
         for h in historial:
-            datos_tabla.append({
+            datos_lista.append({
                 "ID": h.id,
                 "Fecha": h.fecha.strftime("%Y-%m-%d"),
                 "Descripción": h.descripcion,
-                "Monto": f"${h.monto:.2f}",
+                "Monto": h.monto,
                 "Tipo": h.tipo,
                 "Satisfacción": h.satisfaccion.level if hasattr(h.satisfaccion, 'level') else h.satisfaccion.nivel
             })
-        st.table(datos_tabla)
+        
+        df_historial = pd.DataFrame(datos_lista)
+        # Añadimos la columna de selección al inicio
+        df_historial.insert(0, "Seleccionar", False)
 
-        st.divider()
-        st.subheader("Acciones de historial")
+        st.subheader("Registros Actuales")
+        st.write("Selecciona los cuadritos de la izquierda para eliminar varios registros a la vez.")
 
-        # 2. Columnas para Editar y Eliminar
-        col_edit, col_del = st.columns(2)
+        # 3. Mostrar el Editor de Datos
+        edicion = st.data_editor(
+            df_historial,
+            hide_index=True,
+            column_config={
+                "Seleccionar": st.column_config.CheckboxColumn("¿Borrar?", default=False),
+                "ID": st.column_config.NumberColumn("ID", disabled=True),
+                "Monto": st.column_config.NumberColumn("Monto ($)", format="$%.2f")
+            },
+            use_container_width=True,
+            key="editor_historial"
+        )
 
-        with col_edit:
-            with st.expander("📝 Editar un registro"):
-                id_a_editar = st.number_input("Ingresa el ID para editar", min_value=1, step=1, key="edit_id")
-                mov_edit = db.query(Movimiento).filter(Movimiento.id == id_a_editar).first()
-                
-                if mov_edit:
-                    with st.form("form_edicion"):
-                        nueva_desc = st.text_input("Nueva Descripción", value=mov_edit.descripcion)
-                        nuevo_monto = st.number_input("Nuevo Monto", value=float(mov_edit.monto))
+        # 4. Lógica de Eliminación Masiva
+        ids_a_eliminar = edicion[edicion["Seleccionar"] == True]["ID"].tolist()
+
+        if ids_a_eliminar:
+            st.divider()
+            col_msg, col_btn = st.columns([3, 1])
+            
+            with col_msg:
+                st.warning(f"⚠️ Has seleccionado **{len(ids_a_eliminar)}** registro(s) para eliminar.")
+            
+            with col_btn:
+                if st.button("🔥 Confirmar Eliminación", use_container_width=True):
+                    try:
+                        # Borrado en la base de datos
+                        # 1. Borrar métricas de satisfacción primero (por la llave foránea)
+                        db.query(MetricaSatisfaccion).filter(MetricaSatisfaccion.movimiento_id.in_(ids_a_eliminar)).delete(synchronize_session=False)
+                        # 2. Borrar los movimientos
+                        db.query(Movimiento).filter(Movimiento.id.in_(ids_a_eliminar)).delete(synchronize_session=False)
                         
-                        # Manejo de si la columna se llama 'level' o 'nivel'
-                        val_sat = mov_edit.satisfaccion.level if hasattr(mov_edit.satisfaccion, 'level') else mov_edit.satisfaccion.nivel
-                        nuevo_nivel = st.slider("Nueva Satisfacción", 1, 10, int(val_sat))
-                        
-                        
-                else:
-                    st.caption("Introduce un ID válido para ver el formulario de edición.")
+                        db.commit()
+                        st.success(f"✅ ¡{len(ids_a_eliminar)} registros eliminados!")
+                        st.rerun()
+                    except Exception as e:
+                        db.rollback()
+                        st.error(f"Error al eliminar: {e}")
+        
+        # 5. Sección de Edición (Mantenemos la edición por ID debajo por si necesitas cambiar datos)
+        with st.expander("📝 Editar un registro específico"):
+            id_a_editar = st.number_input("Ingresa el ID para editar", min_value=1, step=1, key="edit_id")
+            mov_edit = db.query(Movimiento).filter(Movimiento.id == id_a_editar).first()
+            
+            if mov_edit:
+                with st.form("form_edicion"):
+                    nueva_desc = st.text_input("Nueva Descripción", value=mov_edit.descripcion)
+                    nuevo_monto = st.number_input("Nuevo Monto", value=float(mov_edit.monto))
+                    val_sat = mov_edit.satisfaccion.level if hasattr(mov_edit.satisfaccion, 'level') else mov_edit.satisfaccion.nivel
+                    nuevo_nivel = st.slider("Nueva Satisfacción", 1, 10, int(val_sat))
+                    
+                    if st.form_submit_button("Guardar Cambios"):
+                        mov_edit.descripcion = nueva_desc
+                        mov_edit.monto = nuevo_monto
+                        if hasattr(mov_edit.satisfaccion, 'level'):
+                            mov_edit.satisfaccion.level = nuevo_nivel
+                        else:
+                            mov_edit.satisfaccion.nivel = nuevo_nivel
+                        db.commit()
+                        st.success("Cambios guardados.")
+                        st.rerun()
+            else:
+                st.caption("Introduce un ID válido para editar.")
 
-        with col_del:
-            with st.expander("🗑️ Eliminar un registro"):
-                id_a_eliminar = st.number_input("Ingresa el ID para borrar", min_value=1, step=1, key="del_id")
-                confirmar = st.checkbox(f"Estoy seguro de que quiero borrar el ID {id_a_eliminar}")
-                
-                if st.button("Eliminar permanentemente"):
-                    if confirmar:
-                        try:
-                            # Borrar primero la satisfacción (llave foránea) y luego el movimiento
-                            db.query(MetricaSatisfaccion).filter(MetricaSatisfaccion.movimiento_id == id_a_eliminar).delete()
-                            db.query(Movimiento).filter(Movimiento.id == id_a_eliminar).delete()
-                            db.commit()
-                            st.error(f"Registro {id_a_eliminar} eliminado.")
-                            st.rerun()
-                        except Exception as e:
-                            db.rollback()
-                            st.error(f"Error al eliminar: {e}")
-                    else:
-                        st.warning("Debes marcar la casilla de confirmación.")
     db.close()
