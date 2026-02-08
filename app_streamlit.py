@@ -120,34 +120,7 @@ if opcion == "Inicio":
                 st.session_state.mostrar_todo_inicio = False
                 st.rerun()
 
-# --- AQUÍ TERMINA EL INICIO ---
-# Asegúrate de que después de este bloque NO haya otro bucle "for m in movimientos_db"
-        # 3. Botón dinámico al final de la lista
-        st.write("") # Espacio estético
-        if not st.session_state.mostrar_todo_inicio:
-            if st.button("🔽 Mostrar todos los movimientos", use_container_width=True):
-                st.session_state.mostrar_todo_inicio = True
-                st.rerun()
-        else:
-            if st.button("🔼 Mostrar menos", use_container_width=True):
-                st.session_state.mostrar_todo_inicio = False
-                st.rerun()
-        # 1. Mostramos los 5 últimos siempre
-        ultimos_5 = movimientos_db[-5:][::-1] # Los últimos 5 invertidos
-        for m in ultimos_5:
-            renderizar_fila_movimiento(m, valor_maximo_global)
 
-        st.write("") # Espacio estético
-
-        # 2. El botón expandible con flechitas para el resto
-        with st.expander("🔽 Mostrar todos los movimientos"):
-            # Mostramos todos menos los 5 que ya salieron arriba
-            resto_movimientos = movimientos_db[:-5][::-1]
-            if not resto_movimientos:
-                st.caption("No hay más movimientos antiguos.")
-            else:
-                for m in resto_movimientos:
-                    renderizar_fila_movimiento(m, valor_maximo_global)
 
 elif opcion == "Registrar Movimiento":
     st.title("Registrar Movimiento")
