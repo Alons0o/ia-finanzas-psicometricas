@@ -133,24 +133,46 @@ elif opcion == "Registrar Movimiento":
         tipo = st.selectbox("Tipo", ["GASTO", "INGRESO"])
 
         with col_emocion:
-            st.write("### Prueba de Diagnóstico")
-    try:
-        # Intentamos cargar una sola imagen
-        test_path = "assets/caritas/carita1.PNG"
-        img_b64 = get_base64_image(test_path)
+            st.markdown("### ¿Cómo te sientes con este movimiento?")
         
-        # Intentamos mostrarla de dos formas:
-        st.write("1. Intento con st.image:")
-        st.image(f"assets/caritas/carita1.PNG", width=100)
+        if "satisfaccion_select" not in st.session_state:
+            st.session_state.satisfaccion_select = 5
+
+        iconos_html = ""
+        for i in range(1, 11):
+            try:
+                img_path = f"assets/caritas/carita{i}.PNG"
+                img_b64 = get_base64_image(img_path)
+                
+                es_activa = (st.session_state.satisfaccion_select == i)
+                opacidad = "1" if es_activa else "0.2"
+                filtro = "none" if es_activa else "grayscale(100%)"
+                transform = "scale(1.2)" if es_activa else "scale(0.9)"
+                # Color de borde dinámico: Rojo para tristes, Verde para felices
+                color_borde = "#dc3545" if i <= 3 else "#ffc107" if i <= 7 else "#28a745"
+                borde = f"4px solid {color_borde}" if es_activa else "4px solid transparent"
+
+                iconos_html += f'''<div style="flex: 0 0 auto; width: 65px; margin: 5px; text-align: center;"><img src="data:image/png;base64,{img_b64}" style="width: 55px; height: 55px; opacity: {opacidad}; filter: {filtro}; transform: {transform}; border-bottom: {borde}; transition: 0.3s; cursor: pointer;"><div style="font-size: 12px; font-weight: bold; margin-top: 5px; color: #555;">{i}</div></div>'''
+            except:
+                iconos_html += f'<div style="flex: 0 0 auto; width: 65px;">⚠️</div>'
+
+        # El contenedor principal también sin espacios al inicio de las líneas de string
+        carrete_html = f'''<div style="display: flex; overflow-x: auto; background: white; padding: 15px; border-radius: 20px; box-shadow: inset 0 0 10px rgba(0,0,0,0.05); border: 1px solid #eaeaea;">{iconos_html}</div>'''
         
-        st.write("2. Intento con HTML directo:")
-        html_prueba = f'<img src="data:image/png;base64,{img_b64}" width="100">'
-        st.markdown(html_prueba, unsafe_allow_html=True)
+        st.markdown(carrete_html, unsafe_allow_html=True)
         
-        st.success("Si ves la imagen arriba, la función y el HTML funcionan.")
-    except Exception as e:
-        st.error(f"Error al cargar la imagen: {e}")
-        st.info("Revisa si la ruta 'assets/caritas/carita1.PNG' es exacta (mayúsculas/minúsculas).")
+        # Slider para controlar la selección
+        nuevo_nivel = st.select_slider(
+            "Nivel de satisfacción",
+            options=range(1, 11),
+            value=st.session_state.satisfaccion_select,
+            key="slider_emociones_final",
+            label_visibility="collapsed"
+        )
+
+        if nuevo_nivel != st.session_state.satisfaccion_select:
+            st.session_state.satisfaccion_select = nuevo_nivel
+            st.rerun()
     
     # --- EL FORMULARIO DEBE ESTAR AQUÍ (FUERA DE LAS COLUMNAS) ---
     with st.form("formulario_final", clear_on_submit=True):
