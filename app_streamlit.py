@@ -149,7 +149,14 @@ if opcion == "Inicio":
 elif opcion == "Registrar Movimiento":
     st.title("Registrar Movimiento")
     
-    # 1. Inicialización limpia
+    # 1. Capturar el clic desde la URL (Query Params)
+    query_params = st.query_params
+    if "emoji_val" in query_params:
+        st.session_state.satisfaccion = int(query_params["emoji_val"])
+        # Limpiamos la URL para que no se quede el valor pegado
+        st.query_params.clear()
+        st.rerun()
+
     if 'satisfaccion' not in st.session_state:
         st.session_state.satisfaccion = 10
         
@@ -162,59 +169,39 @@ elif opcion == "Registrar Movimiento":
         comentario = st.text_area("Comentario (Opcional)", key="reg_com")
 
     with col_emocion:
-        # Usamos el valor del estado para marcar la carita activa en el HTML
         val_actual = st.session_state.satisfaccion
         
         caritas_html_list = ""
         for i in range(1, 11):
             img_path = f"assets/caritas/carita{i}.PNG"
             img_base64 = get_base64_image(img_path)
-            active_class = "active" if i == val_actual else ""
+            active_style = "border: 3px solid #ff4b4b; opacity: 1; filter: grayscale(0%); transform: scale(1.1);" if i == val_actual else "opacity: 0.4; filter: grayscale(100%);"
             
+            # El truco: window.top.location.href recarga la página con el valor en la URL
             caritas_html_list += f"""
-                <div class="emoji-card {active_class}" id="card-{i}" onclick="selectEmoji({i})">
-                    <img src="{img_base64}" class="emoji-img">
-                    <div class="emoji-num">{i}</div>
+                <div class="emoji-card" 
+                     style="cursor: pointer; text-align: center; min-width: 45px; transition: 0.2s; padding: 5px; {active_style}" 
+                     onclick="window.top.location.href='/?emoji_val={i}'">
+                    <img src="{img_base64}" style="width: 100%; max-width: 40px;">
+                    <div style="font-weight: bold; font-size: 0.8rem; margin-top: 5px;">{i}</div>
                 </div>
             """
 
         emoji_component_html = f"""
-        <style>
-            .carrete {{ display: flex; flex-wrap: wrap; gap: 10px; background: #f8f9fb; padding: 15px; border-radius: 15px; justify-content: center; }}
-            .emoji-card {{ cursor: pointer; text-align: center; opacity: 0.4; filter: grayscale(100%); min-width: 45px; transition: 0.2s; padding: 5px; }}
-            .emoji-card.active {{ opacity: 1; filter: grayscale(0%); transform: scale(1.1); border-bottom: 3px solid #ff4b4b; }}
-            .emoji-img {{ width: 100%; max-width: 40px; pointer-events: none; }}
-            .emoji-num {{ font-weight: bold; font-size: 0.8rem; margin-top: 5px; pointer-events: none; }}
-        </style>
-        <div class="carrete">{caritas_html_list}</div>
-        <script>
-            function selectEmoji(val) {{
-                // Enviamos el valor a Streamlit
-                window.parent.postMessage({{
-                    isStreamlitMessage: true,
-                    type: "streamlit:setComponentValue",
-                    value: val
-                }}, "*");
-            }}
-        </script>
+        <div style="display: flex; flex-wrap: wrap; gap: 10px; background: #f8f9fb; padding: 15px; border-radius: 15px; justify-content: center; font-family: sans-serif;">
+            {caritas_html_list}
+        </div>
         """
         
-        # KEY FIJA: Para evitar el TypeError de recreación de componente
-        res = components.html(emoji_component_html, height=200, key="selector_emoji_fijo")
-        
-        # Si 'res' trae un valor (del click), actualizamos el estado
-        if res is not None and res != st.session_state.satisfaccion:
-            st.session_state.satisfaccion = int(res)
-            st.rerun()
+        # Renderizado puro (sin asignar a variable 'res' para evitar el TypeError)
+        components.html(emoji_component_html, height=220)
+        st.info(f"Seleccionado actualmente: **Nivel {val_actual}**")
 
     st.divider()
 
-    # --- BOTÓN DE GUARDADO ---
     if st.button("🚀 Guardar Registro", use_container_width=True):
         if descripcion and monto > 0:
-            # Capturamos el valor final del state
             nivel_final = st.session_state.satisfaccion
-            
             db = SessionLocal()
             try:
                 nuevo_mov = Movimiento(tipo=tipo, descripcion=descripcion, monto=monto)
@@ -229,10 +216,9 @@ elif opcion == "Registrar Movimiento":
                 db.add(nueva_metrica)
                 db.commit()
                 
-                st.success(f"✅ Guardado con satisfacción nivel {nivel_final}")
-                st.session_state.satisfaccion = 10 # Reset
+                st.success(f"✅ Guardado con éxito (Satisfacción: {nivel_final})")
+                st.session_state.satisfaccion = 10
                 st.rerun()
-                
             except Exception as e:
                 db.rollback()
                 st.error(f"Error: {e}")
