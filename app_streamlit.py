@@ -74,29 +74,46 @@ if opcion == "Inicio":
     if not movimientos_db:
         st.info("No hay registros aún.")
     else:
-        # Cálculo de barras de progreso visuales
+        # Cálculo de valor máximo para las barras (común para ambas listas)
         valor_maximo_global = max([m.monto for m in movimientos_db]) if movimientos_db else 1
-        ultimos_movimientos = reversed(movimientos_db[-5:])
         
-        for m in ultimos_movimientos:
+        # --- FUNCIÓN INTERNA PARA RENDERIZAR CADA FILA (Para no repetir código) ---
+        def renderizar_fila_movimiento(m, valor_max):
             es_ingreso = (m.tipo.upper() == "INGRESO")
             color_hex = "#28a745" if es_ingreso else "#dc3545"
             emoji = "💰" if es_ingreso else "💸"
-            porcentaje_relativo = (m.monto / valor_maximo_global * 100)
+            porcentaje_relativo = (m.monto / valor_max * 100)
             
             st.markdown(f"""
-                <div style="margin-top: 20px;">
+                <div style="margin-top: 15px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-                        <span style="font-weight: bold; font-size: 16px;">{emoji} {m.descripcion}</span>
-                        <span style="color: {color_hex}; font-weight: bold; font-size: 16px;">${m.monto:,.2f}</span>
+                        <span style="font-weight: bold; font-size: 15px;">{emoji} {m.descripcion}</span>
+                        <span style="color: {color_hex}; font-weight: bold; font-size: 15px;">${m.monto:,.2f}</span>
                     </div>
-                    <div style="width: 100%; background-color: #f0f0f0; border-radius: 12px; height: 26px; border: 1px solid #e0e0e0; overflow: hidden;">
-                        <div style="width: {porcentaje_relativo}%; background-color: {color_hex}; height: 100%; border-radius: 10px; display: flex; align-items: center; justify-content: center; min-width: 40px;">
-                            <span style="color: white; font-size: 11px; font-weight: bold;">{porcentaje_relativo:.1f}%</span>
+                    <div style="width: 100%; background-color: #f0f0f0; border-radius: 12px; height: 20px; border: 1px solid #e0e0e0; overflow: hidden;">
+                        <div style="width: {porcentaje_relativo}%; background-color: {color_hex}; height: 100%; border-radius: 10px; display: flex; align-items: center; justify-content: center; min-width: 35px;">
+                            <span style="color: white; font-size: 10px; font-weight: bold;">{porcentaje_relativo:.1f}%</span>
                         </div>
                     </div>
                 </div>
             """, unsafe_allow_html=True)
+
+        # 1. Mostramos los 5 últimos siempre
+        ultimos_5 = movimientos_db[-5:][::-1] # Los últimos 5 invertidos
+        for m in ultimos_5:
+            renderizar_fila_movimiento(m, valor_maximo_global)
+
+        st.write("") # Espacio estético
+
+        # 2. El botón expandible con flechitas para el resto
+        with st.expander("🔽 Mostrar todos los movimientos"):
+            # Mostramos todos menos los 5 que ya salieron arriba
+            resto_movimientos = movimientos_db[:-5][::-1]
+            if not resto_movimientos:
+                st.caption("No hay más movimientos antiguos.")
+            else:
+                for m in resto_movimientos:
+                    renderizar_fila_movimiento(m, valor_maximo_global)
 
 elif opcion == "Registrar Movimiento":
     st.title("Registrar Movimiento")
