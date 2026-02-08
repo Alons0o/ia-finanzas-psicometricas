@@ -1,4 +1,4 @@
-import os
+import time
 import streamlit as st
 import streamlit.components.v1 as components
 import base64
@@ -222,16 +222,29 @@ elif opcion == "Registrar Movimiento":
                 db.add(nueva_metrica)
                 db.commit()
                 
-                st.success(f"✅ Guardado con satisfacción nivel {nivel_final}")
+                # --- MENSAJES DE ÉXITO ---
+                st.balloons() # Animación de globos
+                
+                # Mensaje visual llamativo
+                st.success(f"✅ ¡Registro guardado! Nivel de satisfacción: {nivel_final}")
+                
+                # Notificación flotante (opcional, muy moderna)
+                st.toast(f'Movimiento "{descripcion}" registrado correctamente', icon='💰')
+                
+                # Esperamos 2 segundos para que el usuario vea el mensaje antes de resetear
+                time.sleep(2)
+                
+                # Resetear para el siguiente registro
                 st.session_state.satisfaccion = 10
                 st.rerun()
+                
             except Exception as e:
                 db.rollback()
-                st.error(f"Error: {e}")
+                st.error(f"❌ Error al guardar en la base de datos: {e}")
             finally:
                 db.close()
         else:
-            st.warning("⚠️ Completa descripción y monto.")
+            st.warning("⚠️ Por favor, completa la descripción y el monto antes de guardar.")
             
 elif opcion == "Recomendaciones":
     st.title("🤖 Recomendaciones") # Título actualizado
