@@ -249,172 +249,64 @@ elif opcion == "Registrar Movimiento":
  
  
 elif opcion == "Visualizaciones":
-
-    st.title("Análisis de Datos")
-
+    st.title("📊 Análisis de Gastos y Felicidad")
+    
     db = SessionLocal()
-
-    motor = MotorPsicometrico(db)
-
-    datos_burbujas = motor.preparar_datos_burbujas()
-
+    # Unimos Movimiento con MetricaSatisfaccion para cruzar datos
+    query = db.query(Movimiento).join(MetricaSatisfaccion).all()
     db.close()
 
-
-
-    if not movimientos_db:
-
-        st.warning("Sin datos suficientes.")
-
+    if not query:
+        st.info("Aún no hay suficientes datos para generar visualizaciones. ¡Registra algunos movimientos primero!")
     else:
-
-        # --- CONFIGURACIÓN DE COLORES SINCRONIZADOS ---
-
-        descripciones_unicas = list(set(d['descripcion'] for d in datos_burbujas))
-
-        color_palette = plt.get_cmap("tab20")
-
-        color_map = {desc: color_palette(i / len(descripciones_unicas)) for i, desc in enumerate(descripciones_unicas)}
-
-
-
-        col_ing, col_gas = st.columns(2)
-
-       
-
-        def dibujar_pastel(ax, datos_lista, titulo, es_gasto=False):
-
-            resumen = {}
-
-            for d in datos_lista:
-
-                resumen[d.descripcion] = resumen.get(d.descripcion, 0) + d.monto
-
-           
-
-            if not resumen:
-
-                ax.text(0.5, 0.5, "Sin datos", ha='center')
-
-                ax.axis('off')
-
-                return
-
-           
-
-            labels, sizes = list(resumen.keys()), list(resumen.values())
-
-           
-
-            if es_gasto:
-
-                colores = [color_map.get(label, "#cccccc") for label in labels]
-
-            else:
-
-                colores = plt.get_cmap("viridis")([i/len(labels) for i in range(len(labels))])
-
-
-
-            def format_monto(pct, allvals):
-
-                absolute = pct/100.*sum(allvals)
-
-                return f"${absolute:,.0f}"
-
-
-
-            # --- CORRECCIÓN AQUÍ: Eliminamos el duplicado en textprops ---
-
-            wedges, texts, autotexts = ax.pie(
-
-                sizes,
-
-                labels=None,
-
-                autopct=lambda pct: format_monto(pct, sizes),
-
-                startangle=140,
-
-                colors=colores,
-
-                pctdistance=0.75,
-
-                textprops={'color': "w", 'fontweight': 'bold', 'size': 10}
-
-            )
-
-           
-
-            ax.legend(
-
-                wedges,
-
-                [f"{l} ({ (s/sum(sizes))*100:.1f}%)" for l, s in zip(labels, sizes)],
-
-                title="Categorías",
-
-                loc="center left",
-
-                bbox_to_anchor=(0.9, 0, 0.5, 1),
-
-                fontsize=8
-
-            )
-
-           
-
-            ax.set_title(titulo, fontweight='bold', pad=20)
-
-
-
-        with col_ing:
-
-            fig_ing, ax_ing = plt.subplots()
-
-            dibujar_pastel(ax_ing, [m for m in movimientos_db if m.tipo=="INGRESO"], "Ingresos")
-
-            st.pyplot(fig_ing)
-
-
-
-        with col_gas:
-
-            fig_gas, ax_gas = plt.subplots()
-
-            dibujar_pastel(ax_gas, [m for m in movimientos_db if m.tipo=="GASTO"], "Gastos", es_gasto=True)
-
-            st.pyplot(fig_gas)
-
-
-
+        import pandas as pd
+        import plotly.express as px # Es más interactivo que Matplotlib
+
+        # Convertimos a DataFrame para facilitar el manejo
+        data = []
+        for m in query:
+            data.append({
+                "Fecha": m.fecha,
+                "Monto": m.monto,
+                "Tipo": m.tipo,
+                "Satisfacción": m.satisfaccion.nivel if hasattr(m.satisfaccion, 'nivel') else 5,
+                "Descripción": m.descripcion
+            })
+        df = pd.DataFrame(data)
+
+        # --- FILA 1: MÉTRICAS GENERALES ---
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.subheader("💰 Gastos vs Ingresos")
+            fig_pie = px.pie(df, values='Monto', names='Tipo', 
+                             color_discrete_map={'GASTO':'#ff4b4b', 'INGRESO':'#28a745'},
+                             hole=0.4)
+            st.plotly_chart(fig_pie, use_container_width=True)
+
+        with col2:
+            st.subheader("🧠 Satisfacción Promedio")
+            avg_sat = df['Satisfacción'].mean()
+            st.metric("Nivel de Bienestar", f"{avg_sat:.1f} / 10", 
+                      delta="Óptimo" if avg_sat > 7 else "Mejorable")
+            
+            # Gráfico de barras de satisfacción por tipo
+            fig_bar = px.bar(df, x='Tipo', y='Satisfacción', color='Tipo',
+                             title="Satisfacción por Categoría",
+                             color_discrete_map={'GASTO':'#ff4b4b', 'INGRESO':'#28a745'})
+            st.plotly_chart(fig_bar, use_container_width=True)
+
+        # --- FILA 2: RELACIÓN MONTO VS SATISFACCIÓN ---
         st.divider()
-
-        st.write("### Mapa de Valor (Gastos)")
-
-       
-
-        if datos_burbujas:
-
-            fig_b, ax_b = plt.subplots(figsize=(10, 5))
-
-            for d in datos_burbujas:
-
-                c_burbuja = color_map.get(d['descripcion'], "blue")
-
-                ax_b.scatter(d['monto'], d['satisfaccion'], s=d['peso']*15, alpha=0.7, color=c_burbuja, edgecolors="white")
-
-                ax_b.annotate(f" {d['descripcion']}", (d['monto'], d['satisfaccion']), fontsize=9, fontweight='bold')
-
-           
-
-            ax_b.set_xlabel("Monto Invertido ($)")
-
-            ax_b.set_ylabel("Nivel de Satisfacción")
-
-            ax_b.grid(True, linestyle='--', alpha=0.5)
-
-            st.pyplot(fig_b)
+        st.subheader("🔍 ¿El dinero compra la felicidad?")
+        st.markdown("Este gráfico muestra si los gastos más altos realmente te generan más satisfacción.")
+        
+        fig_scatter = px.scatter(df[df['Tipo']=='GASTO'], 
+                                 x="Monto", y="Satisfacción", 
+                                 size="Monto", color="Satisfacción",
+                                 hover_name="Descripción", 
+                                 color_continuous_scale=px.colors.sequential.Viridis)
+        st.plotly_chart(fig_scatter, use_container_width=True)
 
             
 elif opcion == "Recomendaciones":
