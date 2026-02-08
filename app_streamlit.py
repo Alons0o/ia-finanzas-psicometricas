@@ -132,8 +132,16 @@ elif opcion == "Registrar Movimiento":
         descripcion = st.text_input("Descripción", placeholder="Ej. Sueldo, Alquiler, Comida...")
         monto = st.number_input("Monto ($)", value=0.0, step=0.01)
         tipo = st.selectbox("Tipo", ["GASTO", "INGRESO"])
-
-        with col_emotion:
+        
+        col_form, col_emotion = st.columns([1, 1.2])
+        
+        with col_form:
+            st.subheader("Registrar Movimiento")
+    st.text_input("Descripción", placeholder="Ej. Sueldo, Alquiler, Comida...")
+    st.number_input("Monto ($)", min_value=0.0, value=0.0, step=0.01)
+    st.selectbox("Tipo", ["GASTO", "INGRESO"])
+    
+    with col_emotion:
     # Definimos el HTML y CSS integrado
             emoji_html = """
     <style>
