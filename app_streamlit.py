@@ -158,14 +158,11 @@ elif opcion == "Registrar Movimiento":
         comentario = st.text_area("Comentario (Opcional)", key="reg_com")
 
     with col_emocion:
-        # 1. Generar el HTML de las 10 caritas
         caritas_html_list = ""
         for i in range(1, 11):
             img_path = f"assets/caritas/carita{i}.PNG"
             img_base64 = get_base64_image(img_path)
             
-            # Sincronizar visualmente con el session_state
-            # Si no hay valor, usamos 10 por defecto
             val_actual = st.session_state.get('satisfaccion', 10)
             active_class = "active" if i == val_actual else ""
             
@@ -193,6 +190,7 @@ elif opcion == "Registrar Movimiento":
             function selectEmoji(val) {{
                 document.querySelectorAll('.emoji-card').forEach(c => c.classList.remove('active'));
                 document.getElementById('card-' + val).classList.add('active');
+                // Enviamos el valor a Streamlit
                 window.parent.postMessage({{
                     isStreamlitMessage: true,
                     type: "streamlit:setComponentValue",
@@ -202,46 +200,23 @@ elif opcion == "Registrar Movimiento":
         </script>
         """
         
-        # 2. Renderizar y capturar. 
-        # IMPORTANTE: No uses 'valor_capturado' directamente en el éxito/DB.
+        # EL CAMBIO ESTÁ AQUÍ:
+        # Usamos un valor de retorno y verificamos si es de tipo esperado
         res = components.html(emoji_component_html, height=230)
         
-        # Si 'res' trae un número, actualizamos el estado
+        # Streamlit a veces devuelve el valor dentro de un diccionario o directamente.
+        # Validamos que sea un número antes de intentar convertirlo a int.
         if res is not None:
-            st.session_state.satisfaccion = int(res)
+            try:
+                # Si res es algo como {'value': 5}, lo extraemos. 
+                # Si es solo 5, lo usamos.
+                nuevo_valor = res if not isinstance(res, dict) else res.get('value')
+                if nuevo_valor is not None:
+                    st.session_state.satisfaccion = int(nuevo_valor)
+            except (ValueError, TypeError):
+                pass # Evita que la app se rompa si el mensaje no es lo que esperamos
 
     st.divider()
-
-    # --- BOTÓN DE GUARDADO ---
-    if st.button("🚀 Guardar Registro", use_container_width=True):
-        if descripcion and monto > 0:
-            db = SessionLocal()
-            try:
-                # Extraemos el valor del estado para asegurar que sea un INT y no un objeto
-                nivel_final = int(st.session_state.get('satisfaccion', 10))
-
-                nuevo_mov = Movimiento(tipo=tipo, descripcion=descripcion, monto=monto)
-                db.add(nuevo_mov)
-                db.flush() 
-                
-                nueva_metrica = MetricaSatisfaccion(
-                    movimiento_id=nuevo_mov.id, 
-                    nivel=nivel_final, 
-                    comentario=comentario
-                )
-                db.add(nueva_metrica)
-                db.commit()
-                
-                st.success(f"✅ ¡Movimiento registrado! Nivel de satisfacción: {nivel_final}")
-                st.balloons()
-            except Exception as e:
-                db.rollback()
-                # Aquí es donde antes fallaba porque intentaba imprimir el objeto HTML en el mensaje de error
-                st.error(f"Error al guardar: {str(e)}")
-            finally:
-                db.close()
-        else:
-            st.warning("⚠️ Por favor completa la descripción y el monto.")
             
 elif opcion == "Recomendaciones":
     st.title("🤖 Recomendaciones") # Título actualizado
