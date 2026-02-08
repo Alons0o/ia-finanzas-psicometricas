@@ -133,55 +133,55 @@ elif opcion == "Registrar Movimiento":
         tipo = st.selectbox("Tipo", ["GASTO", "INGRESO"])
 
     with col_emocion:
-        st.write("### ¿Cómo te sientes con este movimiento?")
+        st.markdown("### ¿Cómo te sientes con este movimiento?")
         
+        # 1. Asegurar estado inicial
         if "satisfaccion_select" not in st.session_state:
             st.session_state.satisfaccion_select = 5
 
+        # 2. Construir el HTML del carrete
         iconos_html = ""
         for i in range(1, 11):
             try:
                 img_path = f"assets/caritas/carita{i}.PNG"
                 img_b64 = get_base64_image(img_path)
-            
-                es_activa = (st.session_state.satisfaccion_select == i)
                 
-                # Estilos calculados
-                opacidad = "1" if es_activa else "0.3"
-                escala = "scale(1.2)" if es_activa else "scale(0.85)"
-                filtro = "grayscale(0%)" if es_activa else "grayscale(100%)"
-                borde = "4px solid #ff4b4b" if es_activa else "4px solid transparent"
+                # Estilos según selección
+                es_activa = (st.session_state.satisfaccion_select == i)
+                opacidad = "1" if es_activa else "0.2"
+                filtro = "none" if es_activa else "grayscale(100%)"
+                transform = "scale(1.2)" if es_activa else "scale(0.9)"
+                borde = "3px solid #ff4b4b" if es_activa else "none"
 
-                # Construcción del item individual
                 iconos_html += f'''
-                    <div style="flex: 0 0 auto; width: 70px; margin: 10px; text-align: center;">
-                        <img src="data:image/png;base64,{img_b64}" 
-                             style="width: 60px; height: 60px; opacity: {opacidad}; 
-                                    filter: {filtro}; transform: {escala}; 
-                                    border-bottom: {borde}; transition: all 0.3s;">
-                        <p style="font-size: 14px; margin: 5px 0; font-weight: bold;">{i}</p>
-                    </div>'''
-            except:
-                iconos_html += f"<div style='flex:0 0 auto; width:70px;'>Error {i}</div>"
+                <div style="flex: 0 0 auto; width: 60px; margin: 10px; text-align: center;">
+                    <img src="data:image/png;base64,{img_b64}" 
+                         style="width: 50px; height: 50px; opacity: {opacidad}; filter: {filtro}; 
+                                transform: {transform}; border-bottom: {borde}; transition: 0.3s;">
+                    <div style="font-size: 12px; font-weight: bold; margin-top: 5px;">{i}</div>
+                </div>
+                '''
+            except Exception:
+                iconos_html += f'<div style="flex: 0 0 auto; width: 60px;">[Img {i}]</div>'
 
-        # EL CAMBIO CLAVE: Contenedor HTML puro
-        carrete_final = f'''
-            <div style="display: flex; overflow-x: auto; background: #f9f9f9; 
-                        border-radius: 15px; padding: 10px; border: 1px solid #ddd;">
-                {iconos_html}
-            </div>'''
+        # 3. Renderizado CRÍTICO: Usar un contenedor div para el scroll
+        carrete_html = f'''
+        <div style="display: flex; overflow-x: auto; white-space: nowrap; 
+                    background-color: #ffffff; padding: 10px; border-radius: 15px; 
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.1); border: 1px solid #eee;">
+            {iconos_html}
+        </div>
+        '''
         
-        # Usamos st.markdown con la bandera obligatoria
-        st.markdown(carrete_final, unsafe_allow_html=True)
+        # IMPORTANTE: st.markdown DEBE tener el parámetro unsafe_allow_html=True
+        st.markdown(carrete_html, unsafe_allow_html=True)
         
-        # Espaciador para que el slider no pegue al carrete
-        st.write("") 
-
+        # 4. Control Slider
         nuevo_nivel = st.select_slider(
-            "Selecciona nivel",
+            "Seleccionador Invisible",
             options=range(1, 11),
             value=st.session_state.satisfaccion_select,
-            key="slider_emociones_v2",
+            key="slider_final_emociones",
             label_visibility="collapsed"
         )
 
