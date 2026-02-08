@@ -79,7 +79,7 @@ if opcion == "Inicio":
     st.title("Dashboard de Inicio")
     st.markdown("### Estado Financiero Actual")
     
-    # Métricas principales
+    # 1. Métricas (Esto se mantiene igual)
     c1, c2, c3 = st.columns(3)
     c1.metric("📥 Total Ingresos", f"${total_ingresos:,.2f}")
     c2.metric("📤 Total Gastos", f"${total_gastos:,.2f}", delta=f"-${total_gastos:,.2f}", delta_color="inverse")
@@ -95,40 +95,33 @@ if opcion == "Inicio":
     if not movimientos_db:
         st.info("No hay registros aún.")
     else:
-        # 1. Estado para controlar si mostramos todo o no
+        # Configuración del estado de expansión
         if "mostrar_todo_inicio" not in st.session_state:
             st.session_state.mostrar_todo_inicio = False
 
-        # Cálculo de valor máximo para las barras
         valor_maximo_global = max([m.monto for m in movimientos_db]) if movimientos_db else 1
-        
-        # Invertimos la lista para que los nuevos salgan arriba
         todos_reversa = movimientos_db[::-1]
         
-        # Definimos cuántos mostrar
-        movimientos_a_renderizar = todos_reversa if st.session_state.mostrar_todo_inicio else todos_reversa[:5]
+        # Seleccionamos qué mostrar (5 o todos)
+        movimientos_a_mostrar = todos_reversa if st.session_state.mostrar_todo_inicio else todos_reversa[:5]
+        
+        # Renderizado de la lista (EL ÚNICO QUE DEBE QUEDAR)
+        for m in movimientos_a_mostrar:
+            renderizar_fila_movimiento(m, valor_maximo_global)
 
-        # 2. Renderizado de los movimientos (salen consecutivos)
-        for m in movimientos_a_renderizar:
-            es_ingreso = (m.tipo.upper() == "INGRESO")
-            color_hex = "#28a745" if es_ingreso else "#dc3545"
-            emoji = "💰" if es_ingreso else "💸"
-            porcentaje_relativo = (m.monto / valor_maximo_global * 100)
-            
-            st.markdown(f"""
-                <div style="margin-top: 15px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-                        <span style="font-weight: bold; font-size: 16px;">{emoji} {m.descripcion}</span>
-                        <span style="color: {color_hex}; font-weight: bold; font-size: 16px;">${m.monto:,.2f}</span>
-                    </div>
-                    <div style="width: 100%; background-color: #f0f0f0; border-radius: 12px; height: 26px; border: 1px solid #e0e0e0; overflow: hidden;">
-                        <div style="width: {porcentaje_relativo}%; background-color: {color_hex}; height: 100%; border-radius: 10px; display: flex; align-items: center; justify-content: center; min-width: 40px;">
-                            <span style="color: white; font-size: 11px; font-weight: bold;">{porcentaje_relativo:.1f}%</span>
-                        </div>
-                    </div>
-                </div>
-            """, unsafe_allow_html=True)
+        # Botón dinámico al final
+        st.write("")
+        if not st.session_state.mostrar_todo_inicio and len(todos_reversa) > 5:
+            if st.button("🔽 Mostrar todos los movimientos", use_container_width=True):
+                st.session_state.mostrar_todo_inicio = True
+                st.rerun()
+        elif st.session_state.mostrar_todo_inicio:
+            if st.button("🔼 Mostrar menos", use_container_width=True):
+                st.session_state.mostrar_todo_inicio = False
+                st.rerun()
 
+# --- AQUÍ TERMINA EL INICIO ---
+# Asegúrate de que después de este bloque NO haya otro bucle "for m in movimientos_db"
         # 3. Botón dinámico al final de la lista
         st.write("") # Espacio estético
         if not st.session_state.mostrar_todo_inicio:
