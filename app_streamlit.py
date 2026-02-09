@@ -6,7 +6,7 @@ from streamlit_option_menu import option_menu
 import matplotlib.pyplot as plt
 from app.db.session import SessionLocal
 from app.ia.analisis_psicometrico import MotorPsicometrico
-from app.models.movimiento import Movimiento
+from app.models.movimiento import Movimiento, Categoria
 from app.models.satisfaccion import MetricaSatisfaccion
 
 if 'satisfaccion' not in st.session_state:
@@ -68,8 +68,8 @@ with st.sidebar:
     
     seleccion = option_menu(
         menu_title=None, 
-        options=["Inicio", "Registrar Movimiento", "Visualizaciones", "Recomendaciones", "Gestionar Historial"],
-        icons=["house", "pencil-square", "bar-chart", "robot", "gear"], 
+        options=["Inicio", "Registrar Movimiento", "Categorías", "Visualizaciones", "Recomendaciones", "Gestionar Historial"],
+        icons=["house", "pencil-square", "tags", "bar-chart", "robot", "gear"], 
         menu_icon="cast",
         default_index=0,
         styles={
@@ -81,20 +81,19 @@ with st.sidebar:
             },
             "icon": {
                 "color": "#ff4b4b", 
-                "font-size": "clamp(14px, 2vw, 18px)" # Tamaño de icono fluido
+                "font-size": "clamp(14px, 2vw, 18px)" 
             }, 
             "nav-link": {
-                # clamp(mínimo, preferido, máximo) ajusta el texto según el ancho
                 "font-size": "clamp(12px, 1.5vw, 16px)", 
                 "text-align": "left", 
                 "margin": "8px 0px", 
                 "font-weight": "bold",
                 "color": "#ffffff",
                 "--hover-color": "#333333",
-                "white-space": "normal",      # Permite que el texto baje a la siguiente línea
-                "word-break": "break-word",   # Rompe palabras largas si es necesario
-                "line-height": "1.2",         # Ajusta el espacio entre líneas si el texto se dobla
-                "display": "flex",            # Mejora la alineación icono-texto
+                "white-space": "normal",
+                "word-break": "break-word",
+                "line-height": "1.2",
+                "display": "flex",
                 "align-items": "center"
             },
             "nav-link-selected": {
@@ -167,6 +166,7 @@ if opcion == "Inicio":
 
 elif opcion == "Registrar Movimiento":
     st.title("Registrar Movimiento")
+    db = SessionLocal()
     
     if 'satisfaccion' not in st.session_state:
         st.session_state.satisfaccion = 10
@@ -177,96 +177,133 @@ elif opcion == "Registrar Movimiento":
         descripcion = st.text_input("Descripción", placeholder="Ej. Alquiler...", key="reg_desc")
         monto = st.number_input("Monto ($)", value=0.0, step=0.01, key="reg_monto")
         tipo = st.selectbox("Tipo", ["GASTO", "INGRESO"], key="reg_tipo")
+        
+        # --- Lógica de Categorías Dinámicas ---
+        cats_disponibles = db.query(Categoria).filter(Categoria.tipo == tipo).all()
+        lista_nombres = ["Sin Categoría"] + [c.nombre for c in cats_disponibles]
+        cat_elegida = st.selectbox("Categoría", lista_nombres)
+        # --------------------------------------
+        
         comentario = st.text_area("Comentario (Opcional)", key="reg_com")
 
     with col_emocion:
+        # ... (Aquí mantén exactamente tu código original de las caritas y carita1.PNG ...)
         st.markdown("### ¿Cómo te sientes con este movimiento?")
-        
-        # CSS para que los botones de las caritas se vean como tarjetas
-        st.markdown("""
-            <style>
-                div[data-testid="stHorizontalBlock"] button {
-                    border: 2px solid #f0f2f6;
-                    border-radius: 15px;
-                    padding: 10px;
-                    background-color: #f8f9fb;
-                    transition: all 0.2s ease;
-                }
-                div[data-testid="stHorizontalBlock"] button:hover {
-                    border-color: #ff4b4b;
-                    background-color: #ffffff;
-                }
-            </style>
-        """, unsafe_allow_html=True)
-
-        # Creamos una cuadrícula de 5x2 para las caritas
-        grid1 = st.columns(5)
-        grid2 = st.columns(5)
-        grids = grid1 + grid2
-
-        for i in range(1, 11):
-            with grids[i-1]:
-                img_path = f"assets/caritas/carita{i}.PNG"
-                img_base64 = get_base64_image(img_path)
-                
-                # Resaltamos el botón si es el seleccionado actualmente
-                label = f"⭐ {i}" if i == st.session_state.satisfaccion else f"{i}"
-                
-                # Mostramos la imagen encima del botón
-                st.markdown(f'<img src="{img_base64}" style="width:100%; max-width:40px; display:block; margin:auto; margin-bottom:5px;">', unsafe_allow_html=True)
-                
-                if st.button(label, key=f"btn_face_{i}", use_container_width=True):
-                    st.session_state.satisfaccion = i
-                    st.rerun()
-
-        st.info(f"Seleccionado: **Nivel {st.session_state.satisfaccion}**")
+        # (Tu cuadrícula de 10 caritas aquí...)
 
     st.divider()
 
-    # --- BOTÓN DE GUARDADO ---
     if st.button("🚀 Guardar Registro", use_container_width=True, type="primary"):
         if descripcion and monto > 0:
-            nivel_final = st.session_state.satisfaccion
-            db = SessionLocal()
             try:
-                nuevo_mov = Movimiento(tipo=tipo, descripcion=descripcion, monto=monto)
+                # Obtener ID de categoría
+                id_cat = None
+                if cat_elegida != "Sin Categoría":
+                    c_obj = db.query(Categoria).filter(Categoria.nombre == cat_elegida).first()
+                    id_cat = c_obj.id
+
+                nuevo_mov = Movimiento(
+                    tipo=tipo, 
+                    descripcion=descripcion, 
+                    monto=monto, 
+                    categoria_id=id_cat
+                )
                 db.add(nuevo_mov)
                 db.flush() 
                 
                 nueva_metrica = MetricaSatisfaccion(
                     movimiento_id=nuevo_mov.id, 
-                    nivel=nivel_final, 
+                    nivel=st.session_state.satisfaccion, 
                     comentario=comentario
                 )
                 db.add(nueva_metrica)
                 db.commit()
                 
-                # --- MENSAJES DE ÉXITO ---
-                st.balloons() # Animación de globos
-                
-                # Mensaje visual llamativo
-                st.success(f"✅ ¡Registro guardado! Nivel de satisfacción: {nivel_final}")
-                
-                # Notificación flotante (opcional, muy moderna)
-                st.toast(f'Movimiento "{descripcion}" registrado correctamente', icon='💰')
-                
-                # Esperamos 2 segundos para que el usuario vea el mensaje antes de resetear
-                time.sleep(2)
-                
-                # Resetear para el siguiente registro
+                st.balloons()
+                st.success(f"✅ ¡Registro guardado en {cat_elegida}!")
+                time.sleep(1.5)
                 st.session_state.satisfaccion = 10
                 st.rerun()
-                
             except Exception as e:
                 db.rollback()
-                st.error(f"❌ Error al guardar en la base de datos: {e}")
+                st.error(f"❌ Error al guardar: {e}")
             finally:
                 db.close()
         else:
             st.warning("⚠️ Por favor, completa la descripción y el monto antes de guardar.")
  
- 
- 
+elif opcion == "Categorías":
+    st.title("📂 Gestión de Categorías")
+    db = SessionLocal()
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("➕ Crear Nueva Categoría")
+        nombre_cat = st.text_input("Nombre de la categoría (ej. Comida, Salud, Sueldo)")
+        tipo_cat = st.selectbox("Tipo de flujo", ["GASTO", "INGRESO"])
+        
+        if st.button("🚀 Guardar Categoría", use_container_width=True):
+            if nombre_cat:
+                try:
+                    nueva = Categoria(nombre=nombre_cat.strip().title(), tipo=tipo_cat)
+                    db.add(nueva)
+                    db.commit()
+                    st.success(f"✅ Categoría '{nombre_cat}' creada correctamente.")
+                    st.rerun()
+                except Exception as e:
+                    db.rollback()
+                    st.error("❌ Error: La categoría ya existe o hay un problema de conexión.")
+            else:
+                st.warning("⚠️ Por favor, escribe un nombre.")
+
+    with col2:
+        st.subheader("📑 Categorías Existentes")
+        categorias = db.query(Categoria).all()
+        if not categorias:
+            st.info("No hay categorías registradas.")
+        else:
+            for cat in categorias:
+                color = "#dc3545" if cat.tipo == "GASTO" else "#28a745"
+                st.markdown(f"**{cat.nombre}** <span style='color:{color}; font-size:12px;'>({cat.tipo})</span>", unsafe_allow_html=True)
+    db.close() 
+
+elif opcion == "Categorías":
+    st.title("📂 Gestión de Categorías")
+    db = SessionLocal()
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("➕ Crear Nueva Categoría")
+        nombre_cat = st.text_input("Nombre de la categoría (ej. Comida, Salud, Sueldo)")
+        tipo_cat = st.selectbox("Tipo de flujo", ["GASTO", "INGRESO"])
+        
+        if st.button("🚀 Guardar Categoría", use_container_width=True):
+            if nombre_cat:
+                try:
+                    nueva = Categoria(nombre=nombre_cat.strip().title(), tipo=tipo_cat)
+                    db.add(nueva)
+                    db.commit()
+                    st.success(f"✅ Categoría '{nombre_cat}' creada correctamente.")
+                    st.rerun()
+                except Exception as e:
+                    db.rollback()
+                    st.error("❌ Error: La categoría ya existe o hay un problema de conexión.")
+            else:
+                st.warning("⚠️ Por favor, escribe un nombre.")
+
+    with col2:
+        st.subheader("📑 Categorías Existentes")
+        categorias = db.query(Categoria).all()
+        if not categorias:
+            st.info("No hay categorías registradas.")
+        else:
+            for cat in categorias:
+                color = "#dc3545" if cat.tipo == "GASTO" else "#28a745"
+                st.markdown(f"**{cat.nombre}** <span style='color:{color}; font-size:12px;'>({cat.tipo})</span>", unsafe_allow_html=True)
+    db.close()
+    
 elif opcion == "Visualizaciones":
 
     st.title("Análisis de Datos")
