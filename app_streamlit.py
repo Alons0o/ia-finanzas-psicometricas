@@ -167,65 +167,122 @@ if opcion == "Inicio":
 
 
 elif opcion == "Registrar Movimiento":
-    st.title("📝 Registrar Movimiento")
+    st.title("Registrar Movimiento")
     db = SessionLocal()
     
-    # Inicializar el estado de satisfacción si no existe
     if 'satisfaccion' not in st.session_state:
         st.session_state.satisfaccion = 10
-
-    # Contenedor principal para organizar inputs y caritas
-    with st.container():
-        col_input, col_emocion = st.columns([1, 1.2])
         
-        with col_input:
-            st.subheader("Datos del Registro")
-            descripcion = st.text_input("Descripción", placeholder="Ej. Cena con amigos")
-            monto = st.number_input("Monto ($)", min_value=0.0, step=0.01)
-            tipo = st.selectbox("Tipo", ["GASTO", "INGRESO"])
-            
-            # Filtro de categorías (lo que añadimos antes)
-            cats_db = db.query(Categoria).filter(Categoria.tipo == tipo).all()
-            opciones_cat = ["Sin Categoría"] + [c.nombre for c in cats_db]
-            cat_seleccionada = st.selectbox("Categoría", opciones_cat)
-            
-            comentario = st.text_area("Comentario / Notas")
+    col_input, col_emocion = st.columns([1, 1.5])
+    
+    with col_input:
+        descripcion = st.text_input("Descripción", placeholder="Ej. Alquiler...", key="reg_desc")
+        monto = st.number_input("Monto ($)", value=0.0, step=0.01, key="reg_monto")
+        tipo = st.selectbox("Tipo", ["GASTO", "INGRESO"], key="reg_tipo")
+        
+        # --- Lógica de Categorías Dinámicas ---
+        cats_disponibles = db.query(Categoria).filter(Categoria.tipo == tipo).all()
+        lista_nombres = ["Sin Categoría"] + [c.nombre for c in cats_disponibles]
+        cat_elegida = st.selectbox("Categoría", lista_nombres)
+        # --------------------------------------
+        
+        comentario = st.text_area("Comentario (Opcional)", key="reg_com")
 
-        with col_emocion:
-            st.subheader("¿Cómo te sientes con esto?")
-            
-            # --- AQUÍ VUELVEN LAS CARITAS ---
-            # Generamos una cuadrícula de 2 filas x 5 columnas para las 10 caritas
-            cols_caritas = st.columns(5)
-            for i in range(1, 11):
-                col_idx = (i - 1) % 5
-                with cols_caritas[col_idx]:
-                    # Asumimos que tus imágenes se llaman carita1.PNG, carita2.PNG...
-                    # Asegúrate de que la ruta 'assets/' o donde las tengas sea correcta
-                    try:
-                        path_carita = f"assets/carita{i}.PNG" 
-                        st.image(path_carita, use_container_width=True)
-                        
-                        # Botón radial o circular para seleccionar
-                        if st.button(f"{i}", key=f"btn_sat_{i}"):
-                            st.session_state.satisfaccion = i
-                    except:
-                        st.write(f"😊 {i}") # Fallback por si la imagen no carga
+    with col_emocion:
 
-            st.info(f"Nivel de satisfacción seleccionado: **{st.session_state.satisfaccion} / 10**")
+        st.markdown("### ¿Cómo te sientes con este movimiento?")
+
+       
+
+        # CSS para que los botones de las caritas se vean como tarjetas
+
+        st.markdown("""
+
+            <style>
+
+                div[data-testid="stHorizontalBlock"] button {
+
+                    border: 2px solid #f0f2f6;
+
+                    border-radius: 15px;
+
+                    padding: 10px;
+
+                    background-color: #f8f9fb;
+
+                    transition: all 0.2s ease;
+
+                }
+
+                div[data-testid="stHorizontalBlock"] button:hover {
+
+                    border-color: #ff4b4b;
+
+                    background-color: #ffffff;
+
+                }
+
+            </style>
+
+        """, unsafe_allow_html=True)
+
+
+
+        # Creamos una cuadrícula de 5x2 para las caritas
+
+        grid1 = st.columns(5)
+
+        grid2 = st.columns(5)
+
+        grids = grid1 + grid2
+
+
+
+        for i in range(1, 11):
+
+            with grids[i-1]:
+
+                img_path = f"assets/caritas/carita{i}.PNG"
+
+                img_base64 = get_base64_image(img_path)
+
+               
+
+                # Resaltamos el botón si es el seleccionado actualmente
+
+                label = f"⭐ {i}" if i == st.session_state.satisfaccion else f"{i}"
+
+               
+
+                # Mostramos la imagen encima del botón
+
+                st.markdown(f'<img src="{img_base64}" style="width:100%; max-width:40px; display:block; margin:auto; margin-bottom:5px;">', unsafe_allow_html=True)
+
+               
+
+                if st.button(label, key=f"btn_face_{i}", use_container_width=True):
+
+                    st.session_state.satisfaccion = i
+
+                    st.rerun()
+
+
+
+        st.info(f"Seleccionado: **Nivel {st.session_state.satisfaccion}**")
+
+
 
     st.divider()
 
-    if st.button("🚀 Guardar Registro Completo", use_container_width=True, type="primary"):
+    if st.button("🚀 Guardar Registro", use_container_width=True, type="primary"):
         if descripcion and monto > 0:
             try:
-                # 1. Obtener ID de categoría
+                # Obtener ID de categoría
                 id_cat = None
-                if cat_seleccionada != "Sin Categoría":
-                    c_obj = db.query(Categoria).filter(Categoria.nombre == cat_seleccionada).first()
+                if cat_elegida != "Sin Categoría":
+                    c_obj = db.query(Categoria).filter(Categoria.nombre == cat_elegida).first()
                     id_cat = c_obj.id
 
-                # 2. Crear Movimiento
                 nuevo_mov = Movimiento(
                     tipo=tipo, 
                     descripcion=descripcion, 
@@ -234,8 +291,7 @@ elif opcion == "Registrar Movimiento":
                 )
                 db.add(nuevo_mov)
                 db.flush() 
-
-                # 3. Crear Métrica vinculada
+                
                 nueva_metrica = MetricaSatisfaccion(
                     movimiento_id=nuevo_mov.id, 
                     nivel=st.session_state.satisfaccion, 
@@ -244,17 +300,18 @@ elif opcion == "Registrar Movimiento":
                 db.add(nueva_metrica)
                 db.commit()
                 
-                st.success("✅ Registro y satisfacción guardados correctamente.")
                 st.balloons()
-                time.sleep(1)
+                st.success(f"✅ ¡Registro guardado en {cat_elegida}!")
+                time.sleep(1.5)
+                st.session_state.satisfaccion = 10
                 st.rerun()
             except Exception as e:
                 db.rollback()
-                st.error(f"Error al guardar: {e}")
+                st.error(f"❌ Error al guardar: {e}")
+            finally:
+                db.close()
         else:
-            st.warning("⚠️ Falta descripción o monto.")
-    
-    db.close()
+            st.warning("⚠️ Por favor, completa la descripción y el monto antes de guardar.")
  
 elif opcion == "Categorías":
     st.title("📂 Gestión de Categorías")
